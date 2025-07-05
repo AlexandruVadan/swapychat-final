@@ -8,9 +8,17 @@ let ws;
 let localStream;
 let peerConnection;
 
-const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const servers = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+            urls: 'turn:numb.viagenie.ca',
+            credential: 'muazkh',
+            username: 'webrtc@live.com'
+        }
+    ]
+};
 
-// ✅ WebSocket URL corect pentru backend-ul Render
 const websocketUrl = 'wss://swapychat-final.onrender.com';
 
 // 🔐 Gestionăm login-ul și logout-ul
@@ -54,7 +62,7 @@ async function startConnection() {
     ws = new WebSocket(websocketUrl);
 
     ws.onopen = () => {
-        console.log('WebSocket connected.');
+        console.log('✅ WebSocket connected.');
         statusMsg.innerText = 'Looking for a partner...';
     };
 
@@ -62,7 +70,7 @@ async function startConnection() {
         let data = JSON.parse(event.data);
 
         if (data.type === 'start') {
-            console.log('Paired with someone!');
+            console.log('✅ Paired with someone!');
             statusMsg.innerText = 'Connected to partner!';
             startWebRTC();
         } else if (data.type === 'waiting') {
@@ -101,6 +109,7 @@ async function startConnection() {
 async function startWebRTC() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        console.log('🎥 Local stream tracks:', localStream.getTracks());
         localVideo.srcObject = localStream;
 
         peerConnection = new RTCPeerConnection(servers);
@@ -108,7 +117,7 @@ async function startWebRTC() {
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         peerConnection.ontrack = (event) => {
-            console.log('Remote stream received.');
+            console.log('🎥 Remote stream received:', event.streams[0]);
             remoteVideo.srcObject = event.streams[0];
         };
 
@@ -116,6 +125,10 @@ async function startWebRTC() {
             if (event.candidate) {
                 ws.send(JSON.stringify({ ice: event.candidate }));
             }
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log('🌐 ICE connection state:', peerConnection.iceConnectionState);
         };
 
         const offer = await peerConnection.createOffer();
