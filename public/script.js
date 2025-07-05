@@ -3,7 +3,7 @@ let remoteVideo = document.getElementById('remoteVideo');
 let startBtn = document.getElementById('startBtn');
 let nextBtn = document.getElementById('nextBtn');
 let statusMsg = document.getElementById('statusMsg');
-
+//
 let ws;
 let localStream;
 let peerConnection;
