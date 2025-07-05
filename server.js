@@ -29,7 +29,7 @@ passport.deserializeUser((obj, done) => {
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: '/auth/google/callback'
+    callbackURL: 'https://swapychat-final.onrender.com/auth/google/callback'
 }, (accessToken, refreshToken, profile, done) => {
     return done(null, profile);
 }));
@@ -38,9 +38,9 @@ passport.use(new GoogleStrategy({
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: '/' }),
+    passport.authenticate('google', { failureRedirect: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app/login' }),
     (req, res) => {
-        res.redirect('/');
+        res.redirect('https://swapychat-final-git-main-aleanderalexs-projects.vercel.app'); // redirect înapoi în aplicația frontend
     }
 );
 
