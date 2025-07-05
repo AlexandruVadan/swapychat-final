@@ -10,6 +10,10 @@ let peerConnection;
 
 const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
+// ✅ WebSocket URL corect pentru deploy online
+// 👉 Înlocuiește cu linkul backend-ului tău de pe Render:
+const websocketUrl = 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app/';
+
 startBtn.onclick = () => {
     if (!ws || ws.readyState === WebSocket.CLOSED) {
         startConnection();
@@ -48,7 +52,7 @@ window.onload = () => {
 };
 
 async function startConnection() {
-    ws = new WebSocket('ws://' + window.location.host);
+    ws = new WebSocket(websocketUrl);
 
     ws.onopen = () => {
         console.log('WebSocket connected.');
@@ -96,24 +100,30 @@ async function startConnection() {
 }
 
 async function startWebRTC() {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localVideo.srcObject = localStream;
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
 
-    peerConnection = new RTCPeerConnection(servers);
+        peerConnection = new RTCPeerConnection(servers);
 
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-    peerConnection.ontrack = (event) => {
-        remoteVideo.srcObject = event.streams[0];
-    };
+        peerConnection.ontrack = (event) => {
+            console.log('Remote stream received.');
+            remoteVideo.srcObject = event.streams[0];
+        };
 
-    peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-            ws.send(JSON.stringify({ ice: event.candidate }));
-        }
-    };
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                ws.send(JSON.stringify({ ice: event.candidate }));
+            }
+        };
 
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
+    } catch (err) {
+        console.error('Error accessing camera: ', err);
+        alert('Error accessing camera: ' + err.message);
+    }
 }
