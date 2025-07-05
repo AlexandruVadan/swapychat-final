@@ -13,26 +13,24 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+console.log('Stripe Key Loaded:', process.env.STRIPE_SECRET_KEY); // Debug
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// === Configurare CORS corect ===
 app.use(cors({
     origin: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app',
     credentials: true
 }));
 
-// === Configurare sesiune si Passport ===
 app.use(session({ secret: 'secret', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use(express.json()); // Global pentru toate rutele NON-webhook
+app.use(express.json());
 
 let waitingUser = null;
 const userSessions = new Map();
 const premiumUsers = new Set();
 
-// === Google OAuth ===
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -48,7 +46,6 @@ passport.deserializeUser((obj, done) => {
     done(null, obj);
 });
 
-// === Autentificare ===
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback',
@@ -84,7 +81,6 @@ app.get('/stripe-public-key', (req, res) => {
     res.json({ publicKey: process.env.STRIPE_PUBLIC_KEY });
 });
 
-// === Stripe Payment ===
 app.post('/create-checkout-session', async (req, res) => {
     const sessionStripe = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -104,7 +100,6 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ id: sessionStripe.id });
 });
 
-// === Webhook Stripe – ATENȚIE: express.raw DOAR aici ===
 app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
@@ -118,15 +113,12 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
 
     if (event.type === 'checkout.session.completed') {
         console.log('✅ Payment confirmed.');
-        // Aici trebuie să salvezi utilizatorul ca premium – exemplu simplu:
-        // premiumUsers.add(userId);
-        // În varianta finală trebuie să legi sesiunea Stripe cu utilizatorul.
+        // În viitor: aici poți salva user-ul real ca premium.
     }
 
     res.json({ received: true });
 });
 
-// === Reconectare Partener Precedent ===
 app.post('/previous-partner', (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({ error: 'Not authenticated' });
@@ -147,7 +139,6 @@ app.post('/previous-partner', (req, res) => {
     res.json({ previousPartner: sessionData.previousPartner });
 });
 
-// === WebSocket ===
 wss.on('connection', (ws, req) => {
     if (!req.session || !req.session.passport || !req.session.passport.user) {
         ws.close();
@@ -204,7 +195,6 @@ wss.on('connection', (ws, req) => {
     });
 });
 
-// === Servim Frontend ===
 app.use(express.static('public'));
 
 app.get('/', (req, res) => {
