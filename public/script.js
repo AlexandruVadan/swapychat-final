@@ -13,25 +13,9 @@ const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 // ✅ WebSocket URL corect pentru backend-ul Render
 const websocketUrl = 'wss://swapychat-final.onrender.com';
 
-startBtn.onclick = () => {
-    if (!ws || ws.readyState === WebSocket.CLOSED) {
-        startConnection();
-    }
-};
-
-nextBtn.onclick = () => {
-    if (ws) ws.close();
-    if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-    }
-    remoteVideo.srcObject = null;
-    startConnection();
-};
-
 // 🔐 Gestionăm login-ul și logout-ul
 window.onload = () => {
-    fetch('/user')
+    fetch('https://swapychat-final.onrender.com/user', { credentials: 'include' })
         .then(res => res.json())
         .then(user => {
             if (user) {
@@ -46,8 +30,24 @@ window.onload = () => {
         });
 
     document.getElementById('logoutBtn').onclick = () => {
-        window.location.href = '/logout';
+        window.location.href = 'https://swapychat-final.onrender.com/logout';
     };
+};
+
+startBtn.onclick = () => {
+    if (!ws || ws.readyState === WebSocket.CLOSED) {
+        startConnection();
+    }
+};
+
+nextBtn.onclick = () => {
+    if (ws) ws.close();
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    remoteVideo.srcObject = null;
+    startConnection();
 };
 
 async function startConnection() {
