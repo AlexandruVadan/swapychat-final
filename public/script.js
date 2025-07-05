@@ -1,117 +1,154 @@
-const express = require('express');
-const session = require('express-session');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const dotenv = require('dotenv');
-const path = require('path');
-const http = require('http');
-const WebSocket = require('ws');
-const cors = require('cors');
+let localVideo = document.getElementById('localVideo');
+let remoteVideo = document.getElementById('remoteVideo');
+let startBtn = document.getElementById('startBtn');
+let nextBtn = document.getElementById('nextBtn');
+let statusMsg = document.getElementById('statusMsg');
 
-dotenv.config();
+let ws;
+let localStream;
+let peerConnection;
 
-const app = express();
-
-// ✅ CORS configurat pentru Vercel
-app.use(cors({
-    origin: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app',
-    credentials: true
-}));
-
-// ✅ Express-session configurat
-app.use(session({
-    secret: 'mysecret',
-    resave: false,
-    saveUninitialized: false
-}));
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-// ✅ Google OAuth configurat
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: '/auth/google/callback'
-},
-    (accessToken, refreshToken, profile, done) => {
-        return done(null, profile);
-    }
-));
-
-passport.serializeUser((user, done) => {
-    done(null, user);
-});
-
-passport.deserializeUser((obj, done) => {
-    done(null, obj);
-});
-
-// ✅ Rute pentru Google Login
-app.get('/auth/google',
-    passport.authenticate('google', { scope: ['profile'] })
-);
-
-app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: '/' }),
-    (req, res) => {
-        res.redirect('/');
-    }
-);
-
-app.get('/logout', (req, res) => {
-    req.logout(() => {
-        res.redirect('/');
-    });
-});
-
-app.get('/user', (req, res) => {
-    res.json(req.user || null);
-});
-
-// ✅ Servim fișierele statice
-app.use(express.static(path.join(__dirname, 'public')));
-
-// ✅ Creăm server HTTP și WebSocket
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-let waitingUser = null;
-
-wss.on('connection', (ws) => {
-    if (waitingUser) {
-        const partner = waitingUser;
-        waitingUser = null;
-
-        ws.partner = partner;
-        partner.partner = ws;
-
-        ws.send(JSON.stringify({ type: 'start' }));
-        partner.send(JSON.stringify({ type: 'start' }));
-    } else {
-        waitingUser = ws;
-        ws.send(JSON.stringify({ type: 'waiting' }));
-    }
-
-    ws.on('message', (message) => {
-        if (ws.partner && ws.partner.readyState === WebSocket.OPEN) {
-            ws.partner.send(message);
+const servers = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
         }
-    });
+    ]
+};
 
-    ws.on('close', () => {
-        if (ws.partner && ws.partner.readyState === WebSocket.OPEN) {
-            ws.partner.send(JSON.stringify({ type: 'partner-left' }));
-            ws.partner.partner = null;
-        }
-        if (waitingUser === ws) {
-            waitingUser = null;
-        }
-    });
-});
+const websocketUrl = 'wss://swapychat-final.onrender.com';
 
-// ✅ Pornim serverul
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+// 🔐 Gestionăm login-ul și logout-ul
+window.onload = () => {
+    fetch('https://swapychat-final.onrender.com/user', { credentials: 'include' })
+        .then(res => res.json())
+        .then(user => {
+            if (user) {
+                document.getElementById('welcomeMsg').innerText = `Welcome, ${user.displayName}`;
+                document.getElementById('logoutBtn').style.display = 'inline-block';
+                document.getElementById('loginBtn').style.display = 'none';
+            } else {
+                document.getElementById('welcomeMsg').innerText = '';
+                document.getElementById('logoutBtn').style.display = 'none';
+                document.getElementById('loginBtn').style.display = 'inline-block';
+            }
+        });
+
+    document.getElementById('logoutBtn').onclick = () => {
+        window.location.href = 'https://swapychat-final.onrender.com/logout';
+    };
+};
+
+startBtn.onclick = () => {
+    if (!ws || ws.readyState === WebSocket.CLOSED) {
+        startConnection();
+    }
+};
+
+nextBtn.onclick = () => {
+    if (ws) ws.close();
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    remoteVideo.srcObject = null;
+    startConnection();
+};
+
+async function startConnection() {
+    ws = new WebSocket(websocketUrl);
+
+    ws.onopen = () => {
+        console.log('✅ WebSocket connected.');
+        statusMsg.innerText = 'Looking for a partner...';
+    };
+
+    ws.onmessage = async (event) => {
+        let data;
+
+        // ✅ Tratăm mesajele care vin ca Blob
+        if (event.data instanceof Blob) {
+            const text = await event.data.text();
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('❌ Eroare la parsarea mesajului:', e);
+                return;
+            }
+        } else {
+            data = JSON.parse(event.data);
+        }
+
+        if (data.type === 'start') {
+            console.log('✅ Paired with someone!');
+            statusMsg.innerText = 'Connected to partner!';
+            startWebRTC();
+        } else if (data.type === 'waiting') {
+            console.log('Waiting for a partner...');
+            statusMsg.innerText = 'Waiting for a partner...';
+        } else if (data.type === 'partner-left') {
+            alert('Your partner disconnected.');
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            remoteVideo.srcObject = null;
+            statusMsg.innerText = 'Partner disconnected. Waiting for a new partner...';
+        } else if (data.sdp) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            if (data.sdp.type === 'offer') {
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
+            }
+        } else if (data.ice) {
+            try {
+                await peerConnection.addIceCandidate(data.ice);
+            } catch (e) {
+                console.error('Error adding ICE candidate', e);
+            }
+        }
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket closed.');
+        statusMsg.innerText = 'Connection closed. Press Start to begin.';
+    };
+}
+
+async function startWebRTC() {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        console.log('🎥 Local stream tracks:', localStream.getTracks());
+        localVideo.srcObject = localStream;
+
+        peerConnection = new RTCPeerConnection(servers);
+
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        peerConnection.ontrack = (event) => {
+            console.log('🎥 Remote stream received:', event.streams[0]);
+            remoteVideo.srcObject = event.streams[0];
+        };
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                ws.send(JSON.stringify({ ice: event.candidate }));
+            }
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log('🌐 ICE connection state:', peerConnection.iceConnectionState);
+        };
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
+    } catch (err) {
+        console.error('Error accessing camera: ', err);
+        alert('Error accessing camera: ' + err.message);
+    }
+}
