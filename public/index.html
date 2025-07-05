@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>SwapyChat</title>
+    <!-- Stripe.js integrat corect -->
+    <script src="https://js.stripe.com/v3/"></script>
     <style>
         body {
             margin: 0;
@@ -103,6 +105,7 @@
         <video id="remoteVideo" autoplay playsinline></video>
     </div>
     <p id="statusMsg">Press Start to begin.</p>
+
     <!-- Butoane Control -->
     <button id="backBtn" style="display:none;">Back to Previous Partner</button>
     <button id="buyPremiumBtn">Buy Premium</button>
@@ -111,6 +114,7 @@
         <button id="nextBtn">Next</button>
     </div>
 
+    <!-- Script-ul aplicației -->
     <script src="script.js"></script>
 </body>
 </html>

@@ -1,4 +1,3 @@
-// === server.js complet cu Stripe si Webhook configurat ===
 require('dotenv').config();
 
 const WebSocket = require('ws');
@@ -8,6 +7,7 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const Stripe = require('stripe');
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,25 +15,24 @@ const wss = new WebSocket.Server({ server });
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Pentru webhook
-app.use('/webhook', express.raw({ type: 'application/json' }));
-app.use(express.json());
-
-let waitingUser = null;
-const userSessions = new Map(); // Salvam partenerii anteriori
-const premiumUsers = new Set(); // In memorie: userId -> premium
+// === Configurare CORS corect ===
+app.use(cors({
+    origin: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app',
+    credentials: true
+}));
 
 // === Configurare sesiune si Passport ===
 app.use(session({ secret: 'secret', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser((user, done) => {
-    done(null, user);
-});
-passport.deserializeUser((obj, done) => {
-    done(null, obj);
-});
+// === Webhook ===
+app.use('/webhook', express.raw({ type: 'application/json' }));
+app.use(express.json());
+
+let waitingUser = null;
+const userSessions = new Map();
+const premiumUsers = new Set();
 
 // === Google OAuth ===
 passport.use(new GoogleStrategy({
@@ -44,7 +43,14 @@ passport.use(new GoogleStrategy({
     return done(null, profile);
 }));
 
-// === Rute Autentificare ===
+passport.serializeUser((user, done) => {
+    done(null, user);
+});
+passport.deserializeUser((obj, done) => {
+    done(null, obj);
+});
+
+// === Autentificare ===
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback',
@@ -74,6 +80,10 @@ app.get('/is-premium', (req, res) => {
     }
     const userId = req.session.passport.user.id;
     res.json({ premium: premiumUsers.has(userId) });
+});
+
+app.get('/stripe-public-key', (req, res) => {
+    res.json({ publicKey: process.env.STRIPE_PUBLIC_KEY });
 });
 
 // === Stripe Payment ===
@@ -110,9 +120,11 @@ app.post('/webhook', (req, res) => {
 
     if (event.type === 'checkout.session.completed') {
         console.log('✅ Payment confirmed.');
-        // Exemplu: salvam premium pentru un user hardcodat (ideal: extragi din metadata sau email)
-        // In productie trebuie sa legi sesiunile Stripe de userii autentificati
-        // Exemplu: premiumUsers.add(userId);
+
+        // În producție ar trebui să legi user-ul din Stripe de cel autentificat.
+        // Exemplu simplu: toți userii care plătesc devin premium (mock temporar)
+        // Premium real se face cu metadata sau DB user-email mapping
+        // premiumUsers.add(userId); // Aceasta trebuie setată corect
     }
 
     res.json({ received: true });
