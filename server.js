@@ -26,9 +26,7 @@ app.use(session({ secret: 'secret', resave: false, saveUninitialized: true }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// === Webhook ===
-app.use('/webhook', express.raw({ type: 'application/json' }));
-app.use(express.json());
+app.use(express.json()); // Global pentru toate rutele NON-webhook
 
 let waitingUser = null;
 const userSessions = new Map();
@@ -106,8 +104,8 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ id: sessionStripe.id });
 });
 
-// === Webhook Stripe ===
-app.post('/webhook', (req, res) => {
+// === Webhook Stripe – ATENȚIE: express.raw DOAR aici ===
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
 
@@ -120,11 +118,9 @@ app.post('/webhook', (req, res) => {
 
     if (event.type === 'checkout.session.completed') {
         console.log('✅ Payment confirmed.');
-
-        // În producție ar trebui să legi user-ul din Stripe de cel autentificat.
-        // Exemplu simplu: toți userii care plătesc devin premium (mock temporar)
-        // Premium real se face cu metadata sau DB user-email mapping
-        // premiumUsers.add(userId); // Aceasta trebuie setată corect
+        // Aici trebuie să salvezi utilizatorul ca premium – exemplu simplu:
+        // premiumUsers.add(userId);
+        // În varianta finală trebuie să legi sesiunea Stripe cu utilizatorul.
     }
 
     res.json({ received: true });
