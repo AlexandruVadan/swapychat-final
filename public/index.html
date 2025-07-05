@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SwapyChat</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .video-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        video {
+            width: 400px;
+            height: 300px;
+            background-color: black;
+            border: 4px solid white;
+            border-radius: 12px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #startBtn {
+            background-color: #34d399;
+            color: white;
+        }
+
+            #startBtn:hover {
+                background-color: #059669;
+            }
+
+        #nextBtn {
+            background-color: #60a5fa;
+            color: white;
+        }
+
+            #nextBtn:hover {
+                background-color: #2563eb;
+            }
+
+        #loginBtn {
+            background-color: #fbbf24;
+            color: black;
+        }
+
+            #loginBtn:hover {
+                background-color: #f59e0b;
+            }
+
+        #logoutBtn {
+            background-color: #ef4444;
+            color: white;
+        }
+
+            #logoutBtn:hover {
+                background-color: #b91c1c;
+            }
+    </style>
+</head>
+<body>
+    <h1>SwapyChat - Video Chat</h1>
+
+    <!-- Autentificare -->
+    <div id="authSection">
+        <a href="/auth/google"><button id="loginBtn">Login with Google</button></a>
+        <button id="logoutBtn" style="display:none;">Logout</button>
+        <p id="welcomeMsg"></p>
+    </div>
+
+    <!-- Video Chat -->
+    <div class="video-container">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+    <p id="statusMsg">Press Start to begin.</p>
+    <!-- Butoane Control -->
+    <div class="buttons">
+        <button id="startBtn">Start</button>
+        <button id="nextBtn">Next</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
