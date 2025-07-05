@@ -55,8 +55,12 @@ window.onload = () => {
         window.location.href = 'https://swapychat-final.onrender.com/logout';
     };
 
-    // Preluam cheia Stripe
-    stripe = Stripe('pk_test_51RhZDSLSfBW6ggYjSObqguaS2wcRAE61dtyj5Fyjg5ZaR4Sg0ettTpsvdHWasX9MQ6YI5NpQQgCIxh3DCAEAds8L00NLvoLox1');
+    // Preluăm cheia Stripe dinamic
+    fetch('https://swapychat-final.onrender.com/stripe-public-key')
+        .then(res => res.json())
+        .then(data => {
+            stripe = Stripe(data.publicKey);
+        });
 };
 
 startBtn.onclick = () => {
