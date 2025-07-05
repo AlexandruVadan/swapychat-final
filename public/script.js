@@ -10,9 +10,8 @@ let peerConnection;
 
 const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-// ✅ WebSocket URL corect pentru deploy online
-// 👉 Înlocuiește cu linkul backend-ului tău de pe Render:
-const websocketUrl = 'https://swapychat-final.onrender.com';
+// ✅ WebSocket URL corect pentru backend-ul Render
+const websocketUrl = 'wss://swapychat-final.onrender.com';
 
 startBtn.onclick = () => {
     if (!ws || ws.readyState === WebSocket.CLOSED) {
