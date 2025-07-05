@@ -12,7 +12,7 @@ const servers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 // ✅ WebSocket URL corect pentru deploy online
 // 👉 Înlocuiește cu linkul backend-ului tău de pe Render:
-const websocketUrl = 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app/';
+const websocketUrl = 'https://swapychat-final.onrender.com';
 
 startBtn.onclick = () => {
     if (!ws || ws.readyState === WebSocket.CLOSED) {
