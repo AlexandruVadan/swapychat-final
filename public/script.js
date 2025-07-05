@@ -2,7 +2,10 @@ let localVideo = document.getElementById('localVideo');
 let remoteVideo = document.getElementById('remoteVideo');
 let startBtn = document.getElementById('startBtn');
 let nextBtn = document.getElementById('nextBtn');
+let backBtn = document.getElementById('backBtn');
 let statusMsg = document.getElementById('statusMsg');
+let previousPartner = null;
+let isPremium = false;
 
 let ws;
 let localStream;
@@ -20,8 +23,9 @@ const servers = {
 };
 
 const websocketUrl = 'wss://swapychat-final.onrender.com';
+let stripe;
 
-// 🔐 Gestionăm login-ul și logout-ul
+// 🔐 Gestionăm login-ul, logout-ul și verificarea premium
 window.onload = () => {
     fetch('https://swapychat-final.onrender.com/user', { credentials: 'include' })
         .then(res => res.json())
@@ -30,6 +34,16 @@ window.onload = () => {
                 document.getElementById('welcomeMsg').innerText = `Welcome, ${user.displayName}`;
                 document.getElementById('logoutBtn').style.display = 'inline-block';
                 document.getElementById('loginBtn').style.display = 'none';
+
+                // Verificare premium
+                fetch('https://swapychat-final.onrender.com/is-premium', { credentials: 'include' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.premium) {
+                            isPremium = true;
+                            backBtn.style.display = 'inline-block';
+                        }
+                    });
             } else {
                 document.getElementById('welcomeMsg').innerText = '';
                 document.getElementById('logoutBtn').style.display = 'none';
@@ -40,6 +54,9 @@ window.onload = () => {
     document.getElementById('logoutBtn').onclick = () => {
         window.location.href = 'https://swapychat-final.onrender.com/logout';
     };
+
+    // Preluam cheia Stripe
+    stripe = Stripe('pk_test_51RhZDSLSfBW6ggYjSObqguaS2wcRAE61dtyj5Fyjg5ZaR4Sg0ettTpsvdHWasX9MQ6YI5NpQQgCIxh3DCAEAds8L00NLvoLox1');
 };
 
 startBtn.onclick = () => {
@@ -69,13 +86,12 @@ async function startConnection() {
     ws.onmessage = async (event) => {
         let data;
 
-        // ✅ Tratăm mesajele care vin ca Blob
         if (event.data instanceof Blob) {
             const text = await event.data.text();
             try {
                 data = JSON.parse(text);
             } catch (e) {
-                console.error('❌ Eroare la parsarea mesajului:', e);
+                console.error('❌ Error parsing message:', e);
                 return;
             }
         } else {
@@ -152,3 +168,35 @@ async function startWebRTC() {
         alert('Error accessing camera: ' + err.message);
     }
 }
+
+// Reconectare premium
+backBtn.onclick = () => {
+    fetch('https://swapychat-final.onrender.com/previous-partner', {
+        method: 'POST',
+        credentials: 'include'
+    })
+        .then(res => {
+            if (res.status === 403) {
+                alert('You need to buy premium to use this feature.');
+                return;
+            }
+            if (!res.ok) {
+                alert('No previous partner available.');
+                return;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data && data.previousPartner) {
+                alert('Reconnected to previous partner!');
+                // Aici poți să adaugi reconectarea WebRTC dacă vrei.
+            }
+        });
+};
+
+// Stripe payment
+document.getElementById('buyPremiumBtn').onclick = () => {
+    fetch('https://swapychat-final.onrender.com/create-checkout-session', { method: 'POST' })
+        .then(res => res.json())
+        .then(session => stripe.redirectToCheckout({ sessionId: session.id }));
+};
