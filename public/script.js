@@ -33,16 +33,28 @@ window.onload = () => {
         .then(user => {
             if (user) {
                 isLoggedIn = true;
-                document.getElementById('welcomeMsg').innerText = `Welcome, ${user.displayName}`;
+                isPremiumUser = user.isPremium || false;
+
+                // ✅ Afișăm badge Premium lângă nume
+                document.getElementById('welcomeMsg').innerText = `Welcome, ${user.displayName} ${isPremiumUser ? '🌟 (Premium)' : ''}`;
+
                 document.getElementById('logoutBtn').style.display = 'inline-block';
                 document.getElementById('loginBtn').style.display = 'none';
 
-                isPremiumUser = user.isPremium || false;
+                // ✅ Afișăm statusul premium
+                if (isPremiumUser) {
+                    statusMsg.innerText = '🎉 You are a Premium user!';
+                    buyPremiumBtn.style.display = 'none'; // ✅ Ascundem butonul Buy Premium
+                } else {
+                    statusMsg.innerText = 'Press Start to begin.';
+                }
+
             } else {
                 isLoggedIn = false;
                 document.getElementById('welcomeMsg').innerText = '';
                 document.getElementById('logoutBtn').style.display = 'none';
                 document.getElementById('loginBtn').style.display = 'inline-block';
+                statusMsg.innerText = 'Press Start to begin.';
             }
         })
         .catch(err => {
@@ -54,14 +66,13 @@ window.onload = () => {
         window.location.href = 'https://swapychat-final.onrender.com/logout';
     };
 
-    // ✅ Detectăm dacă plata a fost finalizată
+    // ✅ Detectăm dacă a fost finalizată plata
     const paymentStatus = getQueryParam('payment');
     if (paymentStatus === 'success') {
         showToast('🎉 Congratulations! You now have Premium access!');
     }
 };
 
-// 🔑 Login direct către Google
 document.getElementById('loginBtn').onclick = () => {
     const googleClientId = '319429829550-omrq45mmjut5nre4hrp6ubvmb0nmem37.apps.googleusercontent.com';
     const redirectUri = 'https://swapychat-final.onrender.com/auth/google/callback';
@@ -222,13 +233,11 @@ async function startWebRTC() {
     }
 }
 
-// ✅ Citire parametri din URL
 function getQueryParam(param) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(param);
 }
 
-// ✅ Afișare toast frumos
 function showToast(message) {
     const toast = document.getElementById('toast');
     toast.innerText = message;
@@ -236,7 +245,6 @@ function showToast(message) {
 
     setTimeout(() => {
         toast.style.display = 'none';
-        // Curățăm URL-ul
         const url = new URL(window.location);
         url.searchParams.delete('payment');
         window.history.replaceState({}, document.title, url.pathname);
