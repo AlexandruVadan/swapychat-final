@@ -8,6 +8,9 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cors = require('cors');
 const Stripe = require('stripe');
+const mongoose = require('mongoose');
+const User = require('./models/User'); // ✅ Import model MongoDB
+
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
@@ -15,9 +18,13 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 let waitingUser = null;
-let premiumUsers = []; // ✅ Simulăm baza de date cu email-uri premium
 
-// ✅ CORS corect 
+// ✅ Conectare MongoDB
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('✅ Connected to MongoDB'))
+    .catch(err => console.error('❌ MongoDB connection error:', err));
+
+// ✅ CORS
 app.use(cors({
     origin: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app',
     credentials: true
@@ -30,23 +37,15 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     proxy: true,
-    cookie: {
-        secure: true,
-        sameSite: 'none'
-    }
+    cookie: { secure: true, sameSite: 'none' }
 }));
 
 app.use(express.json());
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser((user, done) => {
-    done(null, user);
-});
-
-passport.deserializeUser((obj, done) => {
-    done(null, obj);
-});
+passport.serializeUser((user, done) => { done(null, user); });
+passport.deserializeUser((obj, done) => { done(null, obj); });
 
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
@@ -71,15 +70,23 @@ app.get('/logout', (req, res) => {
     });
 });
 
-app.get('/user', (req, res) => {
+// ✅ Verificăm dacă userul e premium din MongoDB
+app.get('/user', async (req, res) => {
     if (req.isAuthenticated()) {
-        const isPremium = premiumUsers.includes(req.user.emails[0].value);
-        res.json({ ...req.user, isPremium });
+        try {
+            const user = await User.findOne({ email: req.user.emails[0].value });
+            const isPremium = user ? user.isPremium : false;
+            res.json({ ...req.user, isPremium });
+        } catch (err) {
+            console.error('❌ Error fetching user:', err);
+            res.status(500).send('Server error');
+        }
     } else {
         res.json(null);
     }
 });
 
+// ✅ Creare checkout Stripe
 app.post('/create-checkout-session', async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).send('Unauthorized');
@@ -104,14 +111,16 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ url: session.url });
 });
 
+// ✅ Webhook Stripe securizat
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
+    const sig = req.headers['stripe-signature'];
     let event;
 
     try {
-        event = JSON.parse(req.body);
+        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
     } catch (err) {
-        console.log('Webhook error:', err);
-        return res.sendStatus(400);
+        console.log('❌ Webhook signature verification failed.', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
     if (event.type === 'checkout.session.completed') {
@@ -120,14 +129,22 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
 
         console.log('✅ Payment confirmed for:', customerEmail);
 
-        if (!premiumUsers.includes(customerEmail)) {
-            premiumUsers.push(customerEmail);
-        }
+        // Salvăm utilizatorul ca Premium în MongoDB
+        User.findOneAndUpdate(
+            { email: customerEmail },
+            { isPremium: true },
+            { upsert: true, new: true }
+        ).then(user => {
+            console.log('✅ Premium user saved:', user.email);
+        }).catch(err => {
+            console.error('❌ Error saving premium user:', err);
+        });
     }
 
     res.sendStatus(200);
 });
 
+// ✅ WebSocket Chat
 wss.on('connection', (ws) => {
     console.log('New user connected.');
 
