@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cors = require('cors');
@@ -20,7 +21,7 @@ const wss = new WebSocket.Server({ server });
 let waitingUser = null;
 
 // ✅ Conectare MongoDB
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ Connected to MongoDB'))
     .catch(err => console.error('❌ MongoDB connection error:', err));
 
@@ -33,11 +34,15 @@ app.use(cors({
 app.set('trust proxy', 1);
 
 app.use(session({
-    secret: 'secret',
+    secret: 'secret', 
     resave: false,
     saveUninitialized: false,
     proxy: true,
-    cookie: { secure: true, sameSite: 'none' }
+    cookie: { secure: true, sameSite: 'none' },
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        ttl: 14 * 24 * 60 * 60 // sesiunea expiră după 14 zile
+    })
 }));
 
 app.use(express.json());
