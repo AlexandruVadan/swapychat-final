@@ -3,7 +3,7 @@ let remoteVideo = document.getElementById('remoteVideo');
 let startBtn = document.getElementById('startBtn');
 let nextBtn = document.getElementById('nextBtn');
 let statusMsg = document.getElementById('statusMsg');
-//
+
 let ws;
 let localStream;
 let peerConnection;
@@ -35,11 +35,30 @@ window.onload = () => {
                 document.getElementById('logoutBtn').style.display = 'none';
                 document.getElementById('loginBtn').style.display = 'inline-block';
             }
+        })
+        .catch(err => {
+            console.error('Fetch error:', err);
+            statusMsg.innerText = 'Error connecting to server.';
         });
 
     document.getElementById('logoutBtn').onclick = () => {
         window.location.href = 'https://swapychat-final.onrender.com/logout';
     };
+};
+
+// 🔑 Login direct către Google
+document.getElementById('loginBtn').onclick = () => {
+    const googleClientId = '319429829550-omrq45mnjut5nre4hrp6ubvmb0nmem37.apps.googleusercontent.com';
+    const redirectUri = 'https://swapychat-final.onrender.com/auth/google/callback';
+    const scope = 'profile email';
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth` +
+        `?client_id=${googleClientId}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=code` +
+        `&scope=${encodeURIComponent(scope)}` +
+        `&access_type=online`;
+
+    window.location.href = authUrl;
 };
 
 startBtn.onclick = () => {
@@ -69,13 +88,12 @@ async function startConnection() {
     ws.onmessage = async (event) => {
         let data;
 
-        // ✅ Tratăm mesajele care vin ca Blob
         if (event.data instanceof Blob) {
             const text = await event.data.text();
             try {
                 data = JSON.parse(text);
             } catch (e) {
-                console.error('❌ Eroare la parsarea mesajului:', e);
+                console.error('❌ Error parsing message:', e);
                 return;
             }
         } else {
