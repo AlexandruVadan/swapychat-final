@@ -20,19 +20,30 @@ app.use(cors({
     credentials: true
 }));
 
-// === Configurare sesiune și Passport ===
-app.use(session({ secret: 'secret', resave: false, saveUninitialized: true }));
+// ✅ Configurare sesiune corectă pentru cross-origin
+app.use(session({
+    secret: 'secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: true,       // ✅ Obligatoriu pe HTTPS
+        sameSite: 'none'    // ✅ Permite cookie cross-origin
+    }
+}));
+
+// ✅ Configurare Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
 passport.serializeUser((user, done) => {
     done(null, user);
 });
+
 passport.deserializeUser((obj, done) => {
     done(null, obj);
 });
 
-// === Configurare Google OAuth ===
+// ✅ Configurare Google OAuth
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -52,8 +63,9 @@ app.get('/auth/google/callback',
 );
 
 app.get('/logout', (req, res) => {
-    req.logout();
-    res.redirect('/');
+    req.logout(() => {
+        res.redirect('/');
+    });
 });
 
 app.get('/user', (req, res) => {
@@ -64,7 +76,7 @@ app.get('/user', (req, res) => {
     }
 });
 
-// === Server WebSocket ===
+// === WebSocket ===
 wss.on('connection', (ws) => {
     console.log('New user connected.');
 
@@ -100,7 +112,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-// === Servim frontend-ul dacă îl rulezi local ===
+// === Servim frontend-ul local, dacă există ===
 app.use(express.static('public'));
 
 app.get('/', (req, res) => {
