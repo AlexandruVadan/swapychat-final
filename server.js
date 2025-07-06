@@ -20,12 +20,42 @@ const wss = new WebSocket.Server({ server });
 
 let waitingUser = null;
 
-// ✅ MongoDB Connect
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('✅ Connected to MongoDB'))
-    .catch(err => console.error('❌ MongoDB connection error:', err));
+// ✅ Webhook Stripe - trebuie să fie PRIMUL
+app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
 
-// ✅ CORS
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        console.log('✅ Stripe webhook received:', event.type);
+    } catch (err) {
+        console.log('❌ Webhook signature verification failed.', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const customerEmail = session.customer_email;
+
+        console.log('✅ Payment confirmed for:', customerEmail);
+
+        User.findOneAndUpdate(
+            { email: customerEmail },
+            { isPremium: true },
+            { upsert: true, new: true }
+        ).then(user => {
+            console.log('✅ Premium user saved:', user.email);
+        }).catch(err => {
+            console.error('❌ Error saving premium user:', err);
+        });
+    }
+
+    res.sendStatus(200);
+});
+
+// ✅ Body parser standard pentru restul aplicației
+app.use(express.json());
+
 app.use(cors({
     origin: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app',
     credentials: true
@@ -45,8 +75,10 @@ app.use(session({
     })
 }));
 
-// ✅ Body parser standard pentru aplicație
-app.use(express.json());
+// ✅ Conectare MongoDB
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('✅ Connected to MongoDB'))
+    .catch(err => console.error('❌ MongoDB connection error:', err));
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -116,39 +148,7 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ url: session.url });
 });
 
-// ✅ Webhook Stripe - Body parser separat
-app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-        console.log('✅ Stripe webhook received:', event.type);
-    } catch (err) {
-        console.log('❌ Webhook signature verification failed.', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const customerEmail = session.customer_email;
-
-        console.log('✅ Payment confirmed for:', customerEmail);
-
-        User.findOneAndUpdate(
-            { email: customerEmail },
-            { isPremium: true },
-            { upsert: true, new: true }
-        ).then(user => {
-            console.log('✅ Premium user saved:', user.email);
-        }).catch(err => {
-            console.error('❌ Error saving premium user:', err);
-        });
-    }
-
-    res.sendStatus(200);
-});
-
+// ✅ WebSocket Chat
 wss.on('connection', (ws) => {
     console.log('New user connected.');
 
