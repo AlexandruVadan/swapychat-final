@@ -48,7 +48,7 @@ window.onload = () => {
 
 // 🔑 Login direct către Google
 document.getElementById('loginBtn').onclick = () => {
-    const googleClientId = '319429829550-omrq45mnjut5nre4hrp6ubvmb0nmem37.apps.googleusercontent.com';
+    const googleClientId = '319429829550-omrq45mmjut5nre4hrp6ubvmb0nmem37.apps.googleusercontent.com';
     const redirectUri = 'https://swapychat-final.onrender.com/auth/google/callback';
     const scope = 'profile email';
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth` +
