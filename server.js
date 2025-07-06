@@ -109,7 +109,7 @@ app.post('/create-checkout-session', async (req, res) => {
             },
             quantity: 1
         }],
-        success_url: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app/premium-success',
+        success_url: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app/?payment=success',
         cancel_url: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app'
     });
 

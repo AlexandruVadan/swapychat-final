@@ -53,10 +53,15 @@ window.onload = () => {
     document.getElementById('logoutBtn').onclick = () => {
         window.location.href = 'https://swapychat-final.onrender.com/logout';
     };
+
+    // ✅ Detectăm dacă plata a fost finalizată
+    const paymentStatus = getQueryParam('payment');
+    if (paymentStatus === 'success') {
+        showToast('🎉 Congratulations! You now have Premium access!');
+    }
 };
 
 // 🔑 Login direct către Google
-
 document.getElementById('loginBtn').onclick = () => {
     const googleClientId = '319429829550-omrq45mmjut5nre4hrp6ubvmb0nmem37.apps.googleusercontent.com';
     const redirectUri = 'https://swapychat-final.onrender.com/auth/google/callback';
@@ -215,4 +220,25 @@ async function startWebRTC() {
         console.error('Error accessing camera: ', err);
         alert('Error accessing camera: ' + err.message);
     }
+}
+
+// ✅ Citire parametri din URL
+function getQueryParam(param) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(param);
+}
+
+// ✅ Afișare toast frumos
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.innerText = message;
+    toast.style.display = 'block';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+        // Curățăm URL-ul
+        const url = new URL(window.location);
+        url.searchParams.delete('payment');
+        window.history.replaceState({}, document.title, url.pathname);
+    }, 5000);
 }
