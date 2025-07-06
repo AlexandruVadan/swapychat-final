@@ -112,7 +112,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Servim frontend local dacă e cazul
+// Servim frontend local dacă e cazul 
 app.use(express.static('public'));
 
 app.get('/', (req, res) => {
