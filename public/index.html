@@ -39,6 +39,8 @@
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         button {
@@ -55,36 +57,54 @@
             color: white;
         }
 
-            #startBtn:hover {
-                background-color: #059669;
-            }
+        #startBtn:hover {
+            background-color: #059669;
+        }
 
         #nextBtn {
             background-color: #60a5fa;
             color: white;
         }
 
-            #nextBtn:hover {
-                background-color: #2563eb;
-            }
+        #nextBtn:hover {
+            background-color: #2563eb;
+        }
+
+        #previousBtn {
+            background-color: #f87171;
+            color: white;
+        }
+
+        #previousBtn:hover {
+            background-color: #dc2626;
+        }
+
+        #buyPremiumBtn {
+            background-color: #fbbf24;
+            color: black;
+        }
+
+        #buyPremiumBtn:hover {
+            background-color: #f59e0b;
+        }
 
         #loginBtn {
             background-color: #fbbf24;
             color: black;
         }
 
-            #loginBtn:hover {
-                background-color: #f59e0b;
-            }
+        #loginBtn:hover {
+            background-color: #f59e0b;
+        }
 
         #logoutBtn {
             background-color: #ef4444;
             color: white;
         }
 
-            #logoutBtn:hover {
-                background-color: #b91c1c;
-            }
+        #logoutBtn:hover {
+            background-color: #b91c1c;
+        }
     </style>
 </head>
 <body>
@@ -102,11 +122,15 @@
         <video id="localVideo" autoplay muted playsinline></video>
         <video id="remoteVideo" autoplay playsinline></video>
     </div>
+
     <p id="statusMsg">Press Start to begin.</p>
+
     <!-- Butoane Control -->
     <div class="buttons">
         <button id="startBtn">Start</button>
         <button id="nextBtn">Next</button>
+        <button id="previousBtn">Previous Partner</button>
+        <button id="buyPremiumBtn">Buy Premium</button>
     </div>
 
     <script src="script.js"></script>

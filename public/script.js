@@ -2,11 +2,16 @@ let localVideo = document.getElementById('localVideo');
 let remoteVideo = document.getElementById('remoteVideo');
 let startBtn = document.getElementById('startBtn');
 let nextBtn = document.getElementById('nextBtn');
+let previousBtn = document.getElementById('previousBtn');
+let buyPremiumBtn = document.getElementById('buyPremiumBtn');
 let statusMsg = document.getElementById('statusMsg');
 
 let ws;
 let localStream;
 let peerConnection;
+
+let previousStream = null;
+let isPremiumUser = false;
 
 const servers = {
     iceServers: [
@@ -21,7 +26,6 @@ const servers = {
 
 const websocketUrl = 'wss://swapychat-final.onrender.com';
 
-// 🔐 Gestionăm login-ul și logout-ul
 window.onload = () => {
     fetch('https://swapychat-final.onrender.com/user', { credentials: 'include' })
         .then(res => res.json())
@@ -30,6 +34,8 @@ window.onload = () => {
                 document.getElementById('welcomeMsg').innerText = `Welcome, ${user.displayName}`;
                 document.getElementById('logoutBtn').style.display = 'inline-block';
                 document.getElementById('loginBtn').style.display = 'none';
+
+                isPremiumUser = user.isPremium || false;
             } else {
                 document.getElementById('welcomeMsg').innerText = '';
                 document.getElementById('logoutBtn').style.display = 'none';
@@ -47,6 +53,7 @@ window.onload = () => {
 };
 
 // 🔑 Login direct către Google
+
 document.getElementById('loginBtn').onclick = () => {
     const googleClientId = '319429829550-omrq45mmjut5nre4hrp6ubvmb0nmem37.apps.googleusercontent.com';
     const redirectUri = 'https://swapychat-final.onrender.com/auth/google/callback';
@@ -68,6 +75,10 @@ startBtn.onclick = () => {
 };
 
 nextBtn.onclick = () => {
+    if (remoteVideo.srcObject) {
+        previousStream = remoteVideo.srcObject;
+    }
+
     if (ws) ws.close();
     if (peerConnection) {
         peerConnection.close();
@@ -75,6 +86,33 @@ nextBtn.onclick = () => {
     }
     remoteVideo.srcObject = null;
     startConnection();
+};
+
+previousBtn.onclick = () => {
+    if (!isPremiumUser) {
+        alert('This feature is available only for premium users.');
+        return;
+    }
+
+    if (previousStream) {
+        remoteVideo.srcObject = previousStream;
+        statusMsg.innerText = 'Showing previous partner';
+    } else {
+        alert('No previous partner available.');
+    }
+};
+
+buyPremiumBtn.onclick = () => {
+    fetch('https://swapychat-final.onrender.com/create-checkout-session', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+    })
+        .then(res => res.json())
+        .then(data => {
+            window.location.href = data.url;
+        })
+        .catch(err => console.error('Error creating checkout session:', err));
 };
 
 async function startConnection() {

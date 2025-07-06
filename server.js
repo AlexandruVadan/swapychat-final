@@ -7,12 +7,15 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cors = require('cors');
+const Stripe = require('stripe');
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 let waitingUser = null;
+let premiumUsers = []; // ✅ Simulăm baza de date cu email-uri premium
 
 // ✅ CORS corect
 app.use(cors({
@@ -20,21 +23,20 @@ app.use(cors({
     credentials: true
 }));
 
-// ✅ Recomandat pe Render (HTTPS proxy)
 app.set('trust proxy', 1);
 
-// ✅ Configurare sesiune corectă
 app.use(session({
     secret: 'secret',
     resave: false,
     saveUninitialized: false,
-    proxy: true, // ✅ esențial pe Render
+    proxy: true,
     cookie: {
-        secure: true,       // ✅ obligă HTTPS
-        sameSite: 'none'    // ✅ permite cross-origin cookies
+        secure: true,
+        sameSite: 'none'
     }
 }));
 
+app.use(express.json());
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -71,10 +73,59 @@ app.get('/logout', (req, res) => {
 
 app.get('/user', (req, res) => {
     if (req.isAuthenticated()) {
-        res.json(req.user);
+        const isPremium = premiumUsers.includes(req.user.emails[0].value);
+        res.json({ ...req.user, isPremium });
     } else {
         res.json(null);
     }
+});
+
+app.post('/create-checkout-session', async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).send('Unauthorized');
+    }
+
+    const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'payment',
+        customer_email: req.user.emails[0].value,
+        line_items: [{
+            price_data: {
+                currency: 'usd',
+                product_data: { name: 'SwapyChat Premium Access' },
+                unit_amount: 500
+            },
+            quantity: 1
+        }],
+        success_url: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app/premium-success',
+        cancel_url: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app'
+    });
+
+    res.json({ url: session.url });
+});
+
+app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
+    let event;
+
+    try {
+        event = JSON.parse(req.body);
+    } catch (err) {
+        console.log('Webhook error:', err);
+        return res.sendStatus(400);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const customerEmail = session.customer_email;
+
+        console.log('✅ Payment confirmed for:', customerEmail);
+
+        if (!premiumUsers.includes(customerEmail)) {
+            premiumUsers.push(customerEmail);
+        }
+    }
+
+    res.sendStatus(200);
 });
 
 wss.on('connection', (ws) => {
@@ -112,7 +163,6 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Servim frontend local dacă e cazul 
 app.use(express.static('public'));
 
 app.get('/', (req, res) => {
