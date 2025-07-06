@@ -6,12 +6,19 @@ const http = require('http');
 const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 let waitingUser = null;
+
+// ✅ Configurare CORS
+app.use(cors({
+    origin: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app',
+    credentials: true
+}));
 
 // === Configurare sesiune și Passport ===
 app.use(session({ secret: 'secret', resave: false, saveUninitialized: true }));
@@ -25,7 +32,7 @@ passport.deserializeUser((obj, done) => {
     done(null, obj);
 });
 
-// === Configurare Google OAuth cu variabile de mediu ===
+// === Configurare Google OAuth ===
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -40,7 +47,7 @@ app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'em
 app.get('/auth/google/callback',
     passport.authenticate('google', { failureRedirect: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app/login' }),
     (req, res) => {
-        res.redirect('https://swapychat-final-git-main-aleanderalexs-projects.vercel.app'); // redirect înapoi în aplicația frontend
+        res.redirect('https://swapychat-final-git-main-aleanderalexs-projects.vercel.app');
     }
 );
 
@@ -93,7 +100,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-// === Servim frontend-ul ===
+// === Servim frontend-ul dacă îl rulezi local ===
 app.use(express.static('public'));
 
 app.get('/', (req, res) => {
