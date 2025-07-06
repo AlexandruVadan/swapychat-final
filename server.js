@@ -14,24 +14,27 @@ const wss = new WebSocket.Server({ server });
 
 let waitingUser = null;
 
-// ✅ Configurare CORS
+// ✅ CORS corect
 app.use(cors({
     origin: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app',
     credentials: true
 }));
 
-// ✅ Configurare sesiune corectă pentru cross-origin
+// ✅ Recomandat pe Render (HTTPS proxy)
+app.set('trust proxy', 1);
+
+// ✅ Configurare sesiune corectă
 app.use(session({
     secret: 'secret',
     resave: false,
     saveUninitialized: false,
+    proxy: true, // ✅ esențial pe Render
     cookie: {
-        secure: true,       // ✅ Obligatoriu pe HTTPS
-        sameSite: 'none'    // ✅ Permite cookie cross-origin
+        secure: true,       // ✅ obligă HTTPS
+        sameSite: 'none'    // ✅ permite cross-origin cookies
     }
 }));
 
-// ✅ Configurare Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -43,7 +46,6 @@ passport.deserializeUser((obj, done) => {
     done(null, obj);
 });
 
-// ✅ Configurare Google OAuth
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -52,7 +54,6 @@ passport.use(new GoogleStrategy({
     return done(null, profile);
 }));
 
-// === Rute autentificare ===
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback',
@@ -76,7 +77,6 @@ app.get('/user', (req, res) => {
     }
 });
 
-// === WebSocket ===
 wss.on('connection', (ws) => {
     console.log('New user connected.');
 
@@ -112,7 +112,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-// === Servim frontend-ul local, dacă există ===
+// Servim frontend local dacă e cazul
 app.use(express.static('public'));
 
 app.get('/', (req, res) => {
