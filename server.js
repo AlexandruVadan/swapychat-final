@@ -105,7 +105,7 @@ app.post('/create-checkout-session', async (req, res) => {
             price_data: {
                 currency: 'usd',
                 product_data: { name: 'SwapyChat Premium Access' },
-                unit_amount: 500
+                unit_amount: 10
             },
             quantity: 1
         }],
