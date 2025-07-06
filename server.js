@@ -10,7 +10,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const cors = require('cors');
 const Stripe = require('stripe');
 const mongoose = require('mongoose');
-const User = require('./models/User'); // ✅ Import model MongoDB
+const User = require('./models/User');
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -20,7 +20,7 @@ const wss = new WebSocket.Server({ server });
 
 let waitingUser = null;
 
-// ✅ Conectare MongoDB
+// ✅ MongoDB Connect
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ Connected to MongoDB'))
     .catch(err => console.error('❌ MongoDB connection error:', err));
@@ -34,18 +34,20 @@ app.use(cors({
 app.set('trust proxy', 1);
 
 app.use(session({
-    secret: 'secret', 
+    secret: 'secret',
     resave: false,
     saveUninitialized: false,
     proxy: true,
     cookie: { secure: true, sameSite: 'none' },
     store: MongoStore.create({
         mongoUrl: process.env.MONGODB_URI,
-        ttl: 14 * 24 * 60 * 60 // sesiunea expiră după 14 zile
+        ttl: 14 * 24 * 60 * 60
     })
 }));
 
+// ✅ Body parser standard pentru aplicație
 app.use(express.json());
+
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -75,7 +77,6 @@ app.get('/logout', (req, res) => {
     });
 });
 
-// ✅ Verificăm dacă userul e premium din MongoDB
 app.get('/user', async (req, res) => {
     if (req.isAuthenticated()) {
         try {
@@ -91,7 +92,6 @@ app.get('/user', async (req, res) => {
     }
 });
 
-// ✅ Creare checkout Stripe
 app.post('/create-checkout-session', async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).send('Unauthorized');
@@ -105,7 +105,7 @@ app.post('/create-checkout-session', async (req, res) => {
             price_data: {
                 currency: 'usd',
                 product_data: { name: 'SwapyChat Premium Access' },
-                unit_amount: 200
+                unit_amount: 200 // 2 dolari
             },
             quantity: 1
         }],
@@ -116,13 +116,14 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ url: session.url });
 });
 
-// ✅ Webhook Stripe securizat
+// ✅ Webhook Stripe - Body parser separat
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
 
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        console.log('✅ Stripe webhook received:', event.type);
     } catch (err) {
         console.log('❌ Webhook signature verification failed.', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -134,7 +135,6 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
 
         console.log('✅ Payment confirmed for:', customerEmail);
 
-        // Salvăm utilizatorul ca Premium în MongoDB
         User.findOneAndUpdate(
             { email: customerEmail },
             { isPremium: true },
@@ -149,7 +149,6 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
     res.sendStatus(200);
 });
 
-// ✅ WebSocket Chat
 wss.on('connection', (ws) => {
     console.log('New user connected.');
 
