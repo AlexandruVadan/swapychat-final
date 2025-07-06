@@ -12,6 +12,7 @@ let peerConnection;
 
 let previousStream = null;
 let isPremiumUser = false;
+let isLoggedIn = false;
 
 const servers = {
     iceServers: [
@@ -31,12 +32,14 @@ window.onload = () => {
         .then(res => res.json())
         .then(user => {
             if (user) {
+                isLoggedIn = true;
                 document.getElementById('welcomeMsg').innerText = `Welcome, ${user.displayName}`;
                 document.getElementById('logoutBtn').style.display = 'inline-block';
                 document.getElementById('loginBtn').style.display = 'none';
 
                 isPremiumUser = user.isPremium || false;
             } else {
+                isLoggedIn = false;
                 document.getElementById('welcomeMsg').innerText = '';
                 document.getElementById('logoutBtn').style.display = 'none';
                 document.getElementById('loginBtn').style.display = 'inline-block';
@@ -103,6 +106,11 @@ previousBtn.onclick = () => {
 };
 
 buyPremiumBtn.onclick = () => {
+    if (!isLoggedIn) {
+        alert('Please log in first to buy premium.');
+        return;
+    }
+
     fetch('https://swapychat-final.onrender.com/create-checkout-session', {
         method: 'POST',
         credentials: 'include',
