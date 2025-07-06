@@ -17,7 +17,7 @@ const wss = new WebSocket.Server({ server });
 let waitingUser = null;
 let premiumUsers = []; // ✅ Simulăm baza de date cu email-uri premium
 
-// ✅ CORS corect
+// ✅ CORS corect 
 app.use(cors({
     origin: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app',
     credentials: true
