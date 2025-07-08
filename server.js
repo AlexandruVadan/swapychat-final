@@ -20,7 +20,7 @@ const wss = new WebSocket.Server({ server });
 
 let waitingUser = null;
 
-// ✅ Webhook Stripe - trebuie să fie PRIMUL
+// ✅ Webhook PRIMUL — corp raw
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
@@ -39,9 +39,11 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
 
         console.log('✅ Payment confirmed for:', customerEmail);
 
+        const premiumUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30 zile
+
         User.findOneAndUpdate(
             { email: customerEmail },
-            { isPremium: true },
+            { isPremium: true, premiumUntil },
             { upsert: true, new: true }
         ).then(user => {
             console.log('✅ Premium user saved:', user.email);
@@ -53,7 +55,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
     res.sendStatus(200);
 });
 
-// ✅ Body parser standard pentru restul aplicației
+// ✅ Body parser pentru restul aplicației
 app.use(express.json());
 
 app.use(cors({
@@ -75,7 +77,6 @@ app.use(session({
     })
 }));
 
-// ✅ Conectare MongoDB
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ Connected to MongoDB'))
     .catch(err => console.error('❌ MongoDB connection error:', err));
@@ -109,12 +110,24 @@ app.get('/logout', (req, res) => {
     });
 });
 
+// ✅ Returnează statusul userului + expirare
 app.get('/user', async (req, res) => {
     if (req.isAuthenticated()) {
         try {
             const user = await User.findOne({ email: req.user.emails[0].value });
-            const isPremium = user ? user.isPremium : false;
-            res.json({ ...req.user, isPremium });
+
+            let isPremium = false;
+            let premiumUntil = null;
+
+            if (user?.premiumUntil && new Date(user.premiumUntil) > new Date()) {
+                isPremium = true;
+                premiumUntil = user.premiumUntil;
+            } else if (user?.isPremium) {
+                // Dacă a expirat, resetăm
+                await User.findOneAndUpdate({ email: user.email }, { isPremium: false });
+            }
+
+            res.json({ ...req.user, isPremium, premiumUntil });
         } catch (err) {
             console.error('❌ Error fetching user:', err);
             res.status(500).send('Server error');
@@ -136,8 +149,8 @@ app.post('/create-checkout-session', async (req, res) => {
         line_items: [{
             price_data: {
                 currency: 'usd',
-                product_data: { name: 'SwapyChat Premium Access' },
-                unit_amount: 200 // 2 dolari 
+                product_data: { name: 'SwapyChat Premium Access (30 days)' },
+                unit_amount: 200
             },
             quantity: 1
         }],
@@ -148,7 +161,7 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ url: session.url });
 });
 
-// ✅ WebSocket Chat
+// ✅ WebSocket chat
 wss.on('connection', (ws) => {
     console.log('New user connected.');
 

@@ -13,6 +13,7 @@ let peerConnection;
 let previousStream = null;
 let isPremiumUser = false;
 let isLoggedIn = false;
+let premiumUntilDate = null;
 
 const servers = {
     iceServers: [
@@ -34,21 +35,25 @@ window.onload = () => {
             if (user) {
                 isLoggedIn = true;
                 isPremiumUser = user.isPremium || false;
+                premiumUntilDate = user.premiumUntil ? new Date(user.premiumUntil) : null;
 
-                // ✅ Afișăm badge Premium lângă nume
-                document.getElementById('welcomeMsg').innerText = `Welcome, ${user.displayName} ${isPremiumUser ? '🌟 (Premium)' : ''}`;
+                // Afișăm numele + badge
+                document.getElementById('welcomeMsg').innerText =
+                    `Welcome, ${user.displayName} ${isPremiumUser ? '🌟 (Premium)' : ''}`;
 
                 document.getElementById('logoutBtn').style.display = 'inline-block';
                 document.getElementById('loginBtn').style.display = 'none';
 
-                // ✅ Afișăm statusul premium
-                if (isPremiumUser) {
-                    statusMsg.innerText = '🎉 You are a Premium user!';
-                    buyPremiumBtn.style.display = 'none'; // ✅ Ascundem butonul Buy Premium
+                // Status premium + ascundere buton
+                if (isPremiumUser && premiumUntilDate) {
+                    statusMsg.innerText = `🎉 You are a Premium user! Valid until: ${premiumUntilDate.toLocaleDateString()}`;
+                    buyPremiumBtn.style.display = 'none';
+                    const section = document.getElementById('premiumSection');
+                    if (section) section.style.display = 'block';
                 } else {
-                    statusMsg.innerText = 'Press Start to begin.';
+                    statusMsg.innerText = 'Your Premium access has expired or is not active.';
+                    buyPremiumBtn.style.display = 'inline-block';
                 }
-
             } else {
                 isLoggedIn = false;
                 document.getElementById('welcomeMsg').innerText = '';
@@ -66,7 +71,6 @@ window.onload = () => {
         window.location.href = 'https://swapychat-final.onrender.com/logout';
     };
 
-    // ✅ Detectăm dacă a fost finalizată plata
     const paymentStatus = getQueryParam('payment');
     if (paymentStatus === 'success') {
         showToast('🎉 Congratulations! You now have Premium access!');
