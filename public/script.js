@@ -3,6 +3,7 @@ let remoteVideo = document.getElementById('remoteVideo');
 let startBtn = document.getElementById('startBtn');
 let nextBtn = document.getElementById('nextBtn');
 let previousBtn = document.getElementById('previousBtn');
+let stopBtn = document.getElementById('stopBtn'); // ✅ nou
 let buyPremiumBtn = document.getElementById('buyPremiumBtn');
 let statusMsg = document.getElementById('statusMsg');
 
@@ -37,14 +38,12 @@ window.onload = () => {
                 isPremiumUser = user.isPremium || false;
                 premiumUntilDate = user.premiumUntil ? new Date(user.premiumUntil) : null;
 
-                // Afișăm numele + badge
                 document.getElementById('welcomeMsg').innerText =
                     `Welcome, ${user.displayName} ${isPremiumUser ? '🌟 (Premium)' : ''}`;
 
                 document.getElementById('logoutBtn').style.display = 'inline-block';
                 document.getElementById('loginBtn').style.display = 'none';
 
-                // Status premium + ascundere buton
                 if (isPremiumUser && premiumUntilDate) {
                     statusMsg.innerText = `🎉 You are a Premium user! Valid until: ${premiumUntilDate.toLocaleDateString()}`;
                     buyPremiumBtn.style.display = 'none';
@@ -123,6 +122,27 @@ previousBtn.onclick = () => {
     } else {
         alert('No previous partner available.');
     }
+};
+
+stopBtn.onclick = () => {
+    if (ws) {
+        ws.close();
+        ws = null;
+    }
+
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+
+    localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
+    statusMsg.innerText = 'Chat stopped. Press Start to begin again.';
 };
 
 buyPremiumBtn.onclick = () => {
