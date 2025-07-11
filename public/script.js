@@ -7,6 +7,11 @@ let stopBtn = document.getElementById('stopBtn'); // ✅ nou
 let buyPremiumBtn = document.getElementById('buyPremiumBtn');
 let statusMsg = document.getElementById('statusMsg');
 
+let chatContainer = document.getElementById('chatContainer');
+let chatMessages = document.getElementById('chatMessages');
+let chatInput = document.getElementById('chatInput');
+let sendMsgBtn = document.getElementById('sendMsgBtn');
+
 let ws;
 let localStream;
 let peerConnection;
@@ -172,50 +177,55 @@ async function startConnection() {
     };
 
     ws.onmessage = async (event) => {
-        let data;
+    let data;
 
-        if (event.data instanceof Blob) {
-            const text = await event.data.text();
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                console.error('❌ Error parsing message:', e);
-                return;
-            }
-        } else {
-            data = JSON.parse(event.data);
+    if (event.data instanceof Blob) {
+        const text = await event.data.text();
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('❌ Error parsing message:', e);
+            return;
         }
+    } else {
+        data = JSON.parse(event.data);
+    }
 
-        if (data.type === 'start') {
-            console.log('✅ Paired with someone!');
-            statusMsg.innerText = 'Connected to partner!';
-            startWebRTC();
-        } else if (data.type === 'waiting') {
-            console.log('Waiting for a partner...');
-            statusMsg.innerText = 'Waiting for a partner...';
-        } else if (data.type === 'partner-left') {
-            alert('Your partner disconnected.');
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            remoteVideo.srcObject = null;
-            statusMsg.innerText = 'Partner disconnected. Waiting for a new partner...';
-        } else if (data.sdp) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-            if (data.sdp.type === 'offer') {
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
-            }
-        } else if (data.ice) {
-            try {
-                await peerConnection.addIceCandidate(data.ice);
-            } catch (e) {
-                console.error('Error adding ICE candidate', e);
-            }
+    if (data.type === 'start') {
+        console.log('✅ Paired with someone!');
+        statusMsg.innerText = 'Connected to partner!';
+        chatContainer.style.display = 'flex';
+        chatMessages.innerHTML = '';
+        startWebRTC();
+    } else if (data.type === 'waiting') {
+        console.log('Waiting for a partner...');
+        statusMsg.innerText = 'Waiting for a partner...';
+    } else if (data.type === 'partner-left') {
+        alert('Your partner disconnected.');
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
         }
-    };
+        remoteVideo.srcObject = null;
+        chatContainer.style.display = 'none';
+        statusMsg.innerText = 'Partner disconnected. Waiting for a new partner...';
+    } else if (data.type === 'chat') {
+        appendMessage('Partner', data.message);
+    } else if (data.sdp) {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        if (data.sdp.type === 'offer') {
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
+        }
+    } else if (data.ice) {
+        try {
+            await peerConnection.addIceCandidate(data.ice);
+        } catch (e) {
+            console.error('Error adding ICE candidate', e);
+        }
+    }
+};
 
     ws.onclose = () => {
         console.log('WebSocket closed.');
@@ -273,4 +283,24 @@ function showToast(message) {
         url.searchParams.delete('payment');
         window.history.replaceState({}, document.title, url.pathname);
     }, 5000);
+}
+
+sendMsgBtn.onclick = () => {
+    const msg = chatInput.value.trim();
+    if (msg && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'chat', message: msg }));
+        appendMessage('You', msg);
+        chatInput.value = '';
+    }
+};
+
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMsgBtn.click();
+});
+
+function appendMessage(sender, message) {
+    const msgElem = document.createElement('div');
+    msgElem.textContent = `${sender}: ${message}`;
+    chatMessages.appendChild(msgElem);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 }
