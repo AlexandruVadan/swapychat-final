@@ -3,7 +3,7 @@ let remoteVideo = document.getElementById('remoteVideo');
 let startBtn = document.getElementById('startBtn');
 let nextBtn = document.getElementById('nextBtn');
 let previousBtn = document.getElementById('previousBtn');
-let stopBtn = document.getElementById('stopBtn'); // ✅ nou
+let stopBtn = document.getElementById('stopBtn');
 let buyPremiumBtn = document.getElementById('buyPremiumBtn');
 let statusMsg = document.getElementById('statusMsg');
 
@@ -11,11 +11,14 @@ let chatContainer = document.getElementById('chatContainer');
 let chatMessages = document.getElementById('chatMessages');
 let chatInput = document.getElementById('chatInput');
 let sendMsgBtn = document.getElementById('sendMsgBtn');
+let genderPopup = document.getElementById('genderPopup');
+let partnerGenderIcon = document.getElementById('partnerGenderIcon');
 
 let ws;
 let localStream;
 let peerConnection;
 
+let selectedGender = null;
 let previousStream = null;
 let isPremiumUser = false;
 let isLoggedIn = false;
@@ -35,6 +38,8 @@ const servers = {
 const websocketUrl = 'wss://swapychat-final.onrender.com';
 
 window.onload = () => {
+    genderPopup.style.display = 'flex';
+
     fetch('https://swapychat-final.onrender.com/user', { credentials: 'include' })
         .then(res => res.json())
         .then(user => {
@@ -80,6 +85,11 @@ window.onload = () => {
         showToast('🎉 Congratulations! You now have Premium access!');
     }
 };
+
+function selectGender(gender) {
+    selectedGender = gender;
+    genderPopup.style.display = 'none';
+}
 
 document.getElementById('loginBtn').onclick = () => {
     const googleClientId = '319429829550-omrq45mmjut5nre4hrp6ubvmb0nmem37.apps.googleusercontent.com';
@@ -147,6 +157,7 @@ stopBtn.onclick = () => {
 
     localVideo.srcObject = null;
     remoteVideo.srcObject = null;
+    partnerGenderIcon.style.display = 'none';
     statusMsg.innerText = 'Chat stopped. Press Start to begin again.';
 };
 
@@ -174,58 +185,65 @@ async function startConnection() {
     ws.onopen = () => {
         console.log('✅ WebSocket connected.');
         statusMsg.innerText = 'Looking for a partner...';
+        ws.send(JSON.stringify({ type: 'init', gender: selectedGender }));
     };
 
     ws.onmessage = async (event) => {
-    let data;
+        let data;
 
-    if (event.data instanceof Blob) {
-        const text = await event.data.text();
-        try {
-            data = JSON.parse(text);
-        } catch (e) {
-            console.error('❌ Error parsing message:', e);
-            return;
+        if (event.data instanceof Blob) {
+            const text = await event.data.text();
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('❌ Error parsing message:', e);
+                return;
+            }
+        } else {
+            data = JSON.parse(event.data);
         }
-    } else {
-        data = JSON.parse(event.data);
-    }
 
-    if (data.type === 'start') {
-        console.log('✅ Paired with someone!');
-        statusMsg.innerText = 'Connected to partner!';
-        chatContainer.style.display = 'flex';
-        chatMessages.innerHTML = '';
-        startWebRTC();
-    } else if (data.type === 'waiting') {
-        console.log('Waiting for a partner...');
-        statusMsg.innerText = 'Waiting for a partner...';
-    } else if (data.type === 'partner-left') {
-        alert('Your partner disconnected.');
-        if (peerConnection) {
-            peerConnection.close();
-            peerConnection = null;
+        if (data.type === 'start') {
+            console.log('✅ Paired with someone!');
+            statusMsg.innerText = 'Connected to partner!';
+            chatContainer.style.display = 'flex';
+            chatMessages.innerHTML = '';
+            startWebRTC();
+        } else if (data.type === 'waiting') {
+            console.log('Waiting for a partner...');
+            statusMsg.innerText = 'Waiting for a partner...';
+        } else if (data.type === 'partner-left') {
+            alert('Your partner disconnected.');
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            remoteVideo.srcObject = null;
+            chatContainer.style.display = 'none';
+            partnerGenderIcon.style.display = 'none';
+            statusMsg.innerText = 'Partner disconnected. Waiting for a new partner...';
+        } else if (data.type === 'chat') {
+            appendMessage('Partner', data.message);
+        } else if (data.type === 'partner-gender') {
+            const iconMap = { male: '👨', female: '👩', couple: '👫' };
+            const icon = iconMap[data.gender] || '';
+            partnerGenderIcon.innerText = icon;
+            partnerGenderIcon.style.display = icon ? 'block' : 'none';
+        } else if (data.sdp) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            if (data.sdp.type === 'offer') {
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
+            }
+        } else if (data.ice) {
+            try {
+                await peerConnection.addIceCandidate(data.ice);
+            } catch (e) {
+                console.error('Error adding ICE candidate', e);
+            }
         }
-        remoteVideo.srcObject = null;
-        chatContainer.style.display = 'none';
-        statusMsg.innerText = 'Partner disconnected. Waiting for a new partner...';
-    } else if (data.type === 'chat') {
-        appendMessage('Partner', data.message);
-    } else if (data.sdp) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-        if (data.sdp.type === 'offer') {
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
-        }
-    } else if (data.ice) {
-        try {
-            await peerConnection.addIceCandidate(data.ice);
-        } catch (e) {
-            console.error('Error adding ICE candidate', e);
-        }
-    }
-};
+    };
 
     ws.onclose = () => {
         console.log('WebSocket closed.');
