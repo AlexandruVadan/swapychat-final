@@ -55,7 +55,6 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
     res.sendStatus(200);
 });
 
-// ✅ Body parser pentru restul aplicației
 app.use(express.json());
 
 app.use(cors({
@@ -110,7 +109,6 @@ app.get('/logout', (req, res) => {
     });
 });
 
-// ✅ Returnează statusul userului + expirare
 app.get('/user', async (req, res) => {
     if (req.isAuthenticated()) {
         try {
@@ -123,7 +121,6 @@ app.get('/user', async (req, res) => {
                 isPremium = true;
                 premiumUntil = user.premiumUntil;
             } else if (user?.isPremium) {
-                // Dacă a expirat, resetăm
                 await User.findOneAndUpdate({ email: user.email }, { isPremium: false });
             }
 
@@ -164,24 +161,40 @@ app.post('/create-checkout-session', async (req, res) => {
 // ✅ WebSocket chat
 wss.on('connection', (ws) => {
     console.log('New user connected.');
-
-    if (waitingUser === null) {
-        waitingUser = ws;
-        ws.partner = null;
-        ws.send(JSON.stringify({ type: 'waiting' }));
-    } else {
-        ws.partner = waitingUser;
-        waitingUser.partner = ws;
-
-        ws.send(JSON.stringify({ type: 'start' }));
-        waitingUser.send(JSON.stringify({ type: 'start' }));
-
-        waitingUser = null;
-    }
+    ws.partner = null;
+    ws.gender = null;
 
     ws.on('message', (message) => {
-        if (ws.partner) {
-            ws.partner.send(message);
+        let data;
+        try {
+            data = JSON.parse(message);
+        } catch (e) {
+            console.error('Invalid JSON:', e);
+            return;
+        }
+
+        if (data.type === 'init') {
+            ws.gender = data.gender;
+
+            if (waitingUser === null) {
+                waitingUser = ws;
+                ws.send(JSON.stringify({ type: 'waiting' }));
+            } else {
+                ws.partner = waitingUser;
+                waitingUser.partner = ws;
+
+                ws.send(JSON.stringify({ type: 'start' }));
+                waitingUser.send(JSON.stringify({ type: 'start' }));
+
+                ws.send(JSON.stringify({ type: 'partner-gender', gender: waitingUser.gender }));
+                waitingUser.send(JSON.stringify({ type: 'partner-gender', gender: ws.gender }));
+
+                waitingUser = null;
+            }
+        } else if (data.type === 'chat' || data.sdp || data.ice) {
+            if (ws.partner) {
+                ws.partner.send(message);
+            }
         }
     });
 
