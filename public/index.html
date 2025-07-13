@@ -116,7 +116,6 @@
             background-color: #b91c1c;
         }
 
-        /* ✅ Toast styling */
         #toast {
             display: none;
             position: fixed;
@@ -139,7 +138,6 @@
             transform: translateY(0);
         }
 
-        /* ✅ Premium badge styling */
         .premium-badge {
             background-color: gold;
             color: black;
@@ -149,7 +147,6 @@
             margin-left: 10px;
         }
 
-        /* ✅ Chat styling */
         #chatContainer {
             display: none;
             flex-direction: column;
@@ -198,7 +195,6 @@
             background-color: #059669;
         }
 
-        /* ✅ Iconiță partener */
         #partnerGenderIcon {
             position: absolute;
             top: 10px;
@@ -209,7 +205,6 @@
             display: none;
         }
 
-        /* ✅ Popup alegere gen */
         #genderPopup {
             position: fixed;
             top: 0; left: 0;
@@ -236,6 +231,24 @@
             border-radius: 8px;
             cursor: pointer;
         }
+
+        #genderFilter {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #filterSelect {
+            padding: 6px 12px;
+            font-size: 16px;
+            border-radius: 6px;
+        }
+
+        #premiumLock {
+            color: gold;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -253,6 +266,18 @@
 
     <!-- ✅ Iconiță partener -->
     <div id="partnerGenderIcon"></div>
+
+    <!-- ✅ Filtru de gen vizibil tuturor -->
+    <div id="genderFilter">
+        <label for="filterSelect">Filter by gender:</label>
+        <select id="filterSelect" disabled>
+            <option value="">-- Any --</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="couple">Couple</option>
+        </select>
+        <span id="premiumLock">🔒 Premium only</span>
+    </div>
 
     <!-- Autentificare -->
     <div id="authSection">

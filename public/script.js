@@ -13,6 +13,8 @@ let chatInput = document.getElementById('chatInput');
 let sendMsgBtn = document.getElementById('sendMsgBtn');
 let genderPopup = document.getElementById('genderPopup');
 let partnerGenderIcon = document.getElementById('partnerGenderIcon');
+let filterSelect = document.getElementById('filterSelect');
+let premiumLock = document.getElementById('premiumLock');
 
 let ws;
 let localStream;
@@ -62,6 +64,12 @@ window.onload = () => {
                 } else {
                     statusMsg.innerText = 'Your Premium access has expired or is not active.';
                     buyPremiumBtn.style.display = 'inline-block';
+                }
+
+                // ✅ Activăm filtrul dacă e premium
+                if (filterSelect && premiumLock) {
+                    filterSelect.disabled = !isPremiumUser;
+                    premiumLock.style.display = isPremiumUser ? 'none' : 'inline';
                 }
             } else {
                 isLoggedIn = false;
@@ -185,7 +193,9 @@ async function startConnection() {
     ws.onopen = () => {
         console.log('✅ WebSocket connected.');
         statusMsg.innerText = 'Looking for a partner...';
-        ws.send(JSON.stringify({ type: 'init', gender: selectedGender }));
+
+        const selectedFilter = filterSelect ? filterSelect.value : '';
+        ws.send(JSON.stringify({ type: 'init', gender: selectedGender, filter: selectedFilter }));
     };
 
     ws.onmessage = async (event) => {

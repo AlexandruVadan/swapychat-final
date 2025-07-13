@@ -18,9 +18,9 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-let waitingUser = null;
+const waitingUsers = []; // înlocuim waitingUser cu o listă
 
-// ✅ Webhook PRIMUL — corp raw
+// ✅ Stripe Webhook
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
@@ -36,9 +36,6 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
         const customerEmail = session.customer_email;
-
-        console.log('✅ Payment confirmed for:', customerEmail);
-
         const premiumUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30 zile
 
         User.findOneAndUpdate(
@@ -158,11 +155,12 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ url: session.url });
 });
 
-// ✅ WebSocket chat
+// ✅ WebSocket matchmaking
 wss.on('connection', (ws) => {
     console.log('New user connected.');
     ws.partner = null;
     ws.gender = null;
+    ws.filter = null;
 
     ws.on('message', (message) => {
         let data;
@@ -175,21 +173,27 @@ wss.on('connection', (ws) => {
 
         if (data.type === 'init') {
             ws.gender = data.gender;
+            ws.filter = data.filter || null;
 
-            if (waitingUser === null) {
-                waitingUser = ws;
-                ws.send(JSON.stringify({ type: 'waiting' }));
-            } else {
-                ws.partner = waitingUser;
-                waitingUser.partner = ws;
+            // încearcă să găsești un partener compatibil
+            const index = waitingUsers.findIndex(user => {
+                return (!ws.filter || user.gender === ws.filter) &&
+                       (!user.filter || ws.gender === user.filter);
+            });
+
+            if (index !== -1) {
+                const partner = waitingUsers.splice(index, 1)[0];
+                ws.partner = partner;
+                partner.partner = ws;
 
                 ws.send(JSON.stringify({ type: 'start' }));
-                waitingUser.send(JSON.stringify({ type: 'start' }));
+                partner.send(JSON.stringify({ type: 'start' }));
 
-                ws.send(JSON.stringify({ type: 'partner-gender', gender: waitingUser.gender }));
-                waitingUser.send(JSON.stringify({ type: 'partner-gender', gender: ws.gender }));
-
-                waitingUser = null;
+                ws.send(JSON.stringify({ type: 'partner-gender', gender: partner.gender }));
+                partner.send(JSON.stringify({ type: 'partner-gender', gender: ws.gender }));
+            } else {
+                waitingUsers.push(ws);
+                ws.send(JSON.stringify({ type: 'waiting' }));
             }
         } else if (data.type === 'chat' || data.sdp || data.ice) {
             if (ws.partner) {
@@ -204,9 +208,8 @@ wss.on('connection', (ws) => {
             ws.partner.send(JSON.stringify({ type: 'partner-left' }));
             ws.partner.partner = null;
         }
-        if (waitingUser === ws) {
-            waitingUser = null;
-        }
+        const i = waitingUsers.indexOf(ws);
+        if (i !== -1) waitingUsers.splice(i, 1);
     });
 });
 
