@@ -19,6 +19,8 @@ let premiumLock = document.getElementById('premiumLock');
 let ws;
 let localStream;
 let peerConnection;
+let iceCandidatesQueue = [];
+let isPeerInitialized = false;
 
 let selectedGender = null;
 let previousStream = null;
@@ -217,7 +219,7 @@ async function startConnection() {
             statusMsg.innerText = 'Connected to partner!';
             chatContainer.style.display = 'flex';
             chatMessages.innerHTML = '';
-            await startWebRTC(); // noi inițiem oferta
+            await startWebRTC(); // we initiate offer
         } else if (data.type === 'waiting') {
             console.log('Waiting for a partner...');
             statusMsg.innerText = 'Waiting for a partner...';
@@ -251,7 +253,11 @@ async function startConnection() {
                 await startWebRTC(true); // skipOffer = true
             }
 
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            } catch (e) {
+                console.error('❌ Failed to set remote description:', e);
+            }
 
             if (data.sdp.type === 'offer') {
                 const answer = await peerConnection.createAnswer();
@@ -260,7 +266,11 @@ async function startConnection() {
             }
         } else if (data.ice) {
             try {
-                await peerConnection.addIceCandidate(data.ice);
+                if (peerConnection && isPeerInitialized) {
+                    await peerConnection.addIceCandidate(data.ice);
+                } else {
+                    iceCandidatesQueue.push(data.ice);
+                }
             } catch (e) {
                 console.error('Error adding ICE candidate', e);
             }
@@ -283,6 +293,7 @@ async function startWebRTC(skipOffer = false) {
         localVideo.srcObject = localStream;
 
         peerConnection = new RTCPeerConnection(servers);
+        isPeerInitialized = false;
 
         localStream.getTracks().forEach(track => {
             peerConnection.addTrack(track, localStream);
@@ -301,6 +312,17 @@ async function startWebRTC(skipOffer = false) {
         peerConnection.oniceconnectionstatechange = () => {
             console.log('ICE state:', peerConnection.iceConnectionState);
         };
+
+        // Procesăm candidatii primiți mai devreme
+        isPeerInitialized = true;
+        for (const candidate of iceCandidatesQueue) {
+            try {
+                await peerConnection.addIceCandidate(candidate);
+            } catch (e) {
+                console.error('Error applying queued ICE candidate:', e);
+            }
+        }
+        iceCandidatesQueue = [];
 
         if (!skipOffer) {
             const offer = await peerConnection.createOffer();
