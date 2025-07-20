@@ -21,6 +21,7 @@ let localStream;
 let peerConnection;
 let iceCandidatesQueue = [];
 let isPeerInitialized = false;
+let isOfferer = false;
 
 let selectedGender = null;
 let previousStream = null;
@@ -219,6 +220,7 @@ async function startConnection() {
             statusMsg.innerText = 'Connected to partner!';
             chatContainer.style.display = 'flex';
             chatMessages.innerHTML = '';
+            isOfferer = true;
             await startWebRTC();
         } else if (data.type === 'waiting') {
             console.log('Waiting for a partner...');
@@ -250,29 +252,21 @@ async function startConnection() {
             partnerGenderIcon.style.display = icon ? 'block' : 'none';
         } else if (data.sdp) {
             if (!peerConnection) {
+                isOfferer = false;
                 await startWebRTC(true);
             }
 
             try {
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-
-                isPeerInitialized = true;
-                for (const candidate of iceCandidatesQueue) {
-                    try {
-                        await peerConnection.addIceCandidate(candidate);
-                    } catch (e) {
-                        console.error('Error applying queued ICE candidate:', e);
-                    }
-                }
-                iceCandidatesQueue = [];
-
-                if (data.sdp.type === 'offer') {
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
-                }
             } catch (e) {
                 console.error('❌ Failed to set remote description:', e);
+                return;
+            }
+
+            if (data.sdp.type === 'offer') {
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
             }
         } else if (data.ice) {
             try {
@@ -323,7 +317,17 @@ async function startWebRTC(skipOffer = false) {
             console.log('ICE state:', peerConnection.iceConnectionState);
         };
 
-        if (!skipOffer) {
+        isPeerInitialized = true;
+        for (const candidate of iceCandidatesQueue) {
+            try {
+                await peerConnection.addIceCandidate(candidate);
+            } catch (e) {
+                console.error('Error applying queued ICE candidate:', e);
+            }
+        }
+        iceCandidatesQueue = [];
+
+        if (isOfferer && !skipOffer) {
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
             ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
