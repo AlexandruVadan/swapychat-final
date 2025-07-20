@@ -37,12 +37,12 @@ const servers = {
     ]
 };
 
-const websocketUrl = 'wss://swapychat-final.onrender.com';
+const websocketUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
 
 window.onload = () => {
     genderPopup.style.display = 'flex';
 
-    fetch('https://swapychat-final.onrender.com/user', { credentials: 'include' })
+    fetch('/user', { credentials: 'include' })
         .then(res => res.json())
         .then(user => {
             if (user) {
@@ -66,7 +66,6 @@ window.onload = () => {
                     buyPremiumBtn.style.display = 'inline-block';
                 }
 
-                // ✅ Activăm filtrul dacă e premium
                 if (filterSelect && premiumLock) {
                     filterSelect.disabled = !isPremiumUser;
                     premiumLock.style.display = isPremiumUser ? 'none' : 'inline';
@@ -85,7 +84,7 @@ window.onload = () => {
         });
 
     document.getElementById('logoutBtn').onclick = () => {
-        window.location.href = 'https://swapychat-final.onrender.com/logout';
+        window.location.href = '/logout';
     };
 
     const paymentStatus = getQueryParam('payment');
@@ -101,7 +100,7 @@ function selectGender(gender) {
 
 document.getElementById('loginBtn').onclick = () => {
     const googleClientId = '319429829550-omrq45mmjut5nre4hrp6ubvmb0nmem37.apps.googleusercontent.com';
-    const redirectUri = 'https://swapychat-final.onrender.com/auth/google/callback';
+    const redirectUri = location.origin + '/auth/google/callback';
     const scope = 'profile email';
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth` +
         `?client_id=${googleClientId}` +
@@ -175,7 +174,7 @@ buyPremiumBtn.onclick = () => {
         return;
     }
 
-    fetch('https://swapychat-final.onrender.com/create-checkout-session', {
+    fetch('/create-checkout-session', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
@@ -264,7 +263,6 @@ async function startConnection() {
 async function startWebRTC() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        console.log('🎥 Local stream tracks:', localStream.getTracks());
         localVideo.srcObject = localStream;
 
         peerConnection = new RTCPeerConnection(servers);
@@ -272,7 +270,6 @@ async function startWebRTC() {
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         peerConnection.ontrack = (event) => {
-            console.log('🎥 Remote stream received:', event.streams[0]);
             remoteVideo.srcObject = event.streams[0];
         };
 
@@ -283,7 +280,7 @@ async function startWebRTC() {
         };
 
         peerConnection.oniceconnectionstatechange = () => {
-            console.log('🌐 ICE connection state:', peerConnection.iceConnectionState);
+            console.log('ICE connection state:', peerConnection.iceConnectionState);
         };
 
         const offer = await peerConnection.createOffer();

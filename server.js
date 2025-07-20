@@ -18,7 +18,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const waitingUsers = []; // înlocuim waitingUser cu o listă
+const waitingUsers = [];
 
 // ✅ Stripe Webhook
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
@@ -55,7 +55,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
 app.use(express.json());
 
 app.use(cors({
-    origin: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app',
+    origin: true, // <- permite accesul de pe același domeniu (onrender.com)
     credentials: true
 }));
 
@@ -94,9 +94,9 @@ passport.use(new GoogleStrategy({
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app/login' }),
+    passport.authenticate('google', { failureRedirect: '/' }),
     (req, res) => {
-        res.redirect('https://swapychat-final-git-main-aleanderalexs-projects.vercel.app');
+        res.redirect('/');
     }
 );
 
@@ -148,8 +148,8 @@ app.post('/create-checkout-session', async (req, res) => {
             },
             quantity: 1
         }],
-        success_url: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app/?payment=success',
-        cancel_url: 'https://swapychat-final-git-main-aleanderalexs-projects.vercel.app'
+        success_url: 'https://swapychat-final.onrender.com/?payment=success',
+        cancel_url: 'https://swapychat-final.onrender.com'
     });
 
     res.json({ url: session.url });
@@ -175,7 +175,6 @@ wss.on('connection', (ws) => {
             ws.gender = data.gender;
             ws.filter = data.filter || null;
 
-            // încearcă să găsești un partener compatibil//
             const index = waitingUsers.findIndex(user => {
                 return (!ws.filter || user.gender === ws.filter) &&
                        (!user.filter || ws.gender === user.filter);
@@ -220,5 +219,5 @@ app.get('/', (req, res) => {
 });
 
 server.listen(3000, () => {
-    console.log('Server running on http://localhost:3000');
+    console.log('✅ Server running on http://localhost:3000');
 });
