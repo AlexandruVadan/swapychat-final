@@ -175,7 +175,7 @@ wss.on('connection', (ws) => {
             ws.gender = data.gender;
             ws.filter = data.filter || null;
 
-            // încearcă să găsești un partener compatibil
+            // încearcă să găsești un partener compatibil//
             const index = waitingUsers.findIndex(user => {
                 return (!ws.filter || user.gender === ws.filter) &&
                        (!user.filter || ws.gender === user.filter);
