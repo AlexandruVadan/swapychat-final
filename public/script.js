@@ -217,7 +217,7 @@ async function startConnection() {
             statusMsg.innerText = 'Connected to partner!';
             chatContainer.style.display = 'flex';
             chatMessages.innerHTML = '';
-            startWebRTC(); // trimitem offer-ul doar dacă noi inițiem
+            await startWebRTC(); // noi inițiem oferta
         } else if (data.type === 'waiting') {
             console.log('Waiting for a partner...');
             statusMsg.innerText = 'Waiting for a partner...';
@@ -231,13 +231,11 @@ async function startConnection() {
             partnerGenderIcon.style.display = 'none';
             statusMsg.innerText = 'Partner disconnected. Looking for a new partner...';
 
-            // Închide WebSocket-ul vechi și reconectează
             if (ws) {
                 ws.close();
                 ws = null;
             }
 
-            // Așteaptă puțin (0.5 secunde) și reconectează
             setTimeout(() => {
                 startConnection();
             }, 500);
@@ -249,7 +247,6 @@ async function startConnection() {
             partnerGenderIcon.innerText = icon;
             partnerGenderIcon.style.display = icon ? 'block' : 'none';
         } else if (data.sdp) {
-            // ✅ dacă nu avem peerConnection, îl creăm și nu generăm noi offer
             if (!peerConnection) {
                 await startWebRTC(true); // skipOffer = true
             }
@@ -274,7 +271,7 @@ async function startConnection() {
         console.log('WebSocket closed.');
         statusMsg.innerText = 'Connection closed. Press Start to begin.';
     };
-}d
+}
 
 async function startWebRTC(skipOffer = false) {
     try {
@@ -305,7 +302,6 @@ async function startWebRTC(skipOffer = false) {
             console.log('ICE state:', peerConnection.iceConnectionState);
         };
 
-        // 🔁 Doar dacă nu am primit deja un remote offer
         if (!skipOffer) {
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
