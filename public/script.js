@@ -222,7 +222,6 @@ async function startConnection() {
             console.log('Waiting for a partner...');
             statusMsg.innerText = 'Waiting for a partner...';
         } else if (data.type === 'partner-left') {
-            alert('Your partner disconnected.');
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
@@ -231,6 +230,8 @@ async function startConnection() {
             chatContainer.style.display = 'none';
             partnerGenderIcon.style.display = 'none';
             statusMsg.innerText = 'Partner disconnected. Waiting for a new partner...';
+}
+
         } else if (data.type === 'chat') {
             appendMessage('Partner', data.message);
         } else if (data.type === 'partner-gender') {
