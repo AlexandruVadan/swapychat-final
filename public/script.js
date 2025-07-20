@@ -229,7 +229,18 @@ async function startConnection() {
             remoteVideo.srcObject = null;
             chatContainer.style.display = 'none';
             partnerGenderIcon.style.display = 'none';
-            statusMsg.innerText = 'Partner disconnected. Waiting for a new partner...';
+            statusMsg.innerText = 'Partner disconnected. Looking for a new partner...';
+
+            // Închide WebSocket-ul vechi și reconectează
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+
+            // Așteaptă puțin (0.5 secunde) și reconectează
+            setTimeout(() => {
+                startConnection();
+            }, 500);
         } else if (data.type === 'chat') {
             appendMessage('Partner', data.message);
         } else if (data.type === 'partner-gender') {
