@@ -272,17 +272,29 @@ async function startConnection() {
 
 async function startWebRTC() {
     try {
+        // 🔁 Oprește stream-ul vechi dacă există
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+
+        // 🎥 Obține un nou stream proaspăt
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localVideo.srcObject = localStream;
 
+        // 🌐 Creează noul peerConnection
         peerConnection = new RTCPeerConnection(servers);
 
-        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        // ➕ Adaugă toate track-urile în peerConnection
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
 
+        // 📥 Când primești stream de la partener
         peerConnection.ontrack = (event) => {
             remoteVideo.srcObject = event.streams[0];
         };
 
+        // ❄️ Trimite candidați ICE
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 ws.send(JSON.stringify({ ice: event.candidate }));
@@ -290,14 +302,15 @@ async function startWebRTC() {
         };
 
         peerConnection.oniceconnectionstatechange = () => {
-            console.log('ICE connection state:', peerConnection.iceConnectionState);
+            console.log('🌐 ICE connection state:', peerConnection.iceConnectionState);
         };
 
+        // 📡 Creează și trimite offer
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
         ws.send(JSON.stringify({ sdp: peerConnection.localDescription }));
     } catch (err) {
-        console.error('Error accessing camera: ', err);
+        console.error('❌ Error accessing camera:', err);
         alert('Error accessing camera: ' + err.message);
     }
 }
