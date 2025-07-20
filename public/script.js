@@ -220,8 +220,10 @@ async function startConnection() {
             statusMsg.innerText = 'Connected to partner!';
             chatContainer.style.display = 'flex';
             chatMessages.innerHTML = '';
-            isOfferer = true;
+
+            isOfferer = !!data.initiator; // ✅ setează din mesaj
             await startWebRTC();
+
         } else if (data.type === 'waiting') {
             console.log('Waiting for a partner...');
             statusMsg.innerText = 'Waiting for a partner...';
@@ -251,9 +253,11 @@ async function startConnection() {
             partnerGenderIcon.innerText = icon;
             partnerGenderIcon.style.display = icon ? 'block' : 'none';
         } else if (data.sdp) {
-            if (!peerConnection) {
+           if (!peerConnection) {
+            await startWebRTC(true);
+            }
+            if (data.sdp.type === 'offer') {
                 isOfferer = false;
-                await startWebRTC(true);
             }
 
             try {

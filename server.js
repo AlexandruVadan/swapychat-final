@@ -55,7 +55,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
 app.use(express.json());
 
 app.use(cors({
-    origin: true, // <- permite accesul de pe același domeniu (onrender.com)
+    origin: true,
     credentials: true
 }));
 
@@ -185,8 +185,9 @@ wss.on('connection', (ws) => {
                 ws.partner = partner;
                 partner.partner = ws;
 
-                ws.send(JSON.stringify({ type: 'start' }));
-                partner.send(JSON.stringify({ type: 'start' }));
+                // Trimitem initiator true doar uneia dintre părți
+                ws.send(JSON.stringify({ type: 'start', initiator: true }));
+                partner.send(JSON.stringify({ type: 'start', initiator: false }));
 
                 ws.send(JSON.stringify({ type: 'partner-gender', gender: partner.gender }));
                 partner.send(JSON.stringify({ type: 'partner-gender', gender: ws.gender }));
