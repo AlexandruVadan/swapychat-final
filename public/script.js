@@ -43,6 +43,9 @@ const servers = {
 const websocketUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
 
 window.onload = () => {
+    // ✅ Pre-warm backend la fiecare intrare pe site
+    fetch('/health', { cache: 'no-store' }).catch(() => {});
+
     genderPopup.style.display = 'flex';
 
     fetch('/user', { credentials: 'include' })
@@ -221,7 +224,7 @@ async function startConnection() {
             chatContainer.style.display = 'flex';
             chatMessages.innerHTML = '';
 
-            isOfferer = !!data.initiator; // ✅ setează din mesaj
+            isOfferer = !!data.initiator;
             await startWebRTC();
 
         } else if (data.type === 'waiting') {

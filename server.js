@@ -20,6 +20,9 @@ const wss = new WebSocket.Server({ server });
 
 const waitingUsers = [];
 
+// ✅ Endpoint rapid de health pentru Render + UptimeRobot
+app.get('/health', (req, res) => res.status(200).send('ok'));
+
 // ✅ Stripe Webhook
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
     const sig = req.headers['stripe-signature'];
@@ -219,6 +222,8 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
 
-server.listen(3000, () => {
-    console.log('✅ Server running on http://localhost:3000');
+// ✅ Ascultă pe PORT din Render (nu doar 3000)
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
 });
