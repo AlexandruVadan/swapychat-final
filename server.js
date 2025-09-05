@@ -216,6 +216,12 @@ wss.on('connection', (ws) => {
     });
 });
 
+// ✅ Log activi la fiecare 30 secunde (pus o singură dată)
+setInterval(() => {
+    const activeUsers = Array.from(wss.clients).filter(client => client.readyState === WebSocket.OPEN).length;
+    console.log(`👥 Active users: ${activeUsers}`);
+}, 30000);
+
 app.use(express.static('public'));
 
 app.get('/', (req, res) => {
