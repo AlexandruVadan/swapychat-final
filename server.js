@@ -144,12 +144,12 @@ app.post('/create-checkout-session', async (req, res) => {
         mode: 'payment',
         customer_email: req.user.emails[0].value,
         line_items: [{
-            price_data: {
-                currency: 'usd',
-                product_data: { name: 'SwapyChat Premium Access (30 days)' },
-                unit_amount: 200
-            },
-            quantity: 1
+        price_data: {
+            currency: 'eur',
+            product_data: { name: 'SwapyChat Premium Access (30 days)' },
+            unit_amount: 999
+        },
+        quantity: 1
         }],
         success_url: 'https://swapychat-final.onrender.com/?payment=success',
         cancel_url: 'https://swapychat-final.onrender.com'
