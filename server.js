@@ -188,7 +188,6 @@ wss.on('connection', (ws) => {
                 ws.partner = partner;
                 partner.partner = ws;
 
-                // Trimitem initiator true doar uneia dintre părți
                 ws.send(JSON.stringify({ type: 'start', initiator: true }));
                 partner.send(JSON.stringify({ type: 'start', initiator: false }));
 
@@ -215,6 +214,14 @@ wss.on('connection', (ws) => {
         if (i !== -1) waitingUsers.splice(i, 1);
     });
 });
+
+// ✅ Log activi la fiecare 30 secunde (global, nu per mesaj)
+setInterval(() => {
+    const activeUsers = Array.from(wss.clients)
+        .filter(client => client.readyState === WebSocket.OPEN).length;
+    console.log(`👥 Active users: ${activeUsers}`);
+}, 30000);
+
 
 // ✅ Log activi la fiecare 30 secunde (pus o singură dată)
 setInterval(() => {
