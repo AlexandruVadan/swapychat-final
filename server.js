@@ -158,76 +158,41 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ url: session.url });
 });
 
+// util mic
+function logActiveUsers(where = '') {
+  const activeUsers = Array.from(wss.clients)
+    .filter(c => c.readyState === WebSocket.OPEN).length;
+  console.log(`${where ? where + ' ' : ''}👥 Active users: ${activeUsers}`);
+}
+
 // ✅ WebSocket matchmaking
 wss.on('connection', (ws) => {
-    console.log('New user connected.');
-    ws.partner = null;
-    ws.gender = null;
-    ws.filter = null;
+  console.log('New user connected.');
+  logActiveUsers('(after connect)');
 
-    ws.on('message', (message) => {
-        let data;
-        try {
-            data = JSON.parse(message);
-        } catch (e) {
-            console.error('Invalid JSON:', e);
-            return;
-        }
+  ws.partner = null;
+  ws.gender = null;
+  ws.filter = null;
 
-        if (data.type === 'init') {
-            ws.gender = data.gender;
-            ws.filter = data.filter || null;
+  ws.on('message', (message) => {
+    // ... codul tău existent ...
+  });
 
-            const index = waitingUsers.findIndex(user => {
-                return (!ws.filter || user.gender === ws.filter) &&
-                       (!user.filter || ws.gender === user.filter);
-            });
-
-            if (index !== -1) {
-                const partner = waitingUsers.splice(index, 1)[0];
-                ws.partner = partner;
-                partner.partner = ws;
-
-                ws.send(JSON.stringify({ type: 'start', initiator: true }));
-                partner.send(JSON.stringify({ type: 'start', initiator: false }));
-
-                ws.send(JSON.stringify({ type: 'partner-gender', gender: partner.gender }));
-                partner.send(JSON.stringify({ type: 'partner-gender', gender: ws.gender }));
-            } else {
-                waitingUsers.push(ws);
-                ws.send(JSON.stringify({ type: 'waiting' }));
-            }
-        } else if (data.type === 'chat' || data.sdp || data.ice) {
-            if (ws.partner) {
-                ws.partner.send(message);
-            }
-        }
-    });
-
-    ws.on('close', () => {
-        console.log('User disconnected.');
-        if (ws.partner) {
-            ws.partner.send(JSON.stringify({ type: 'partner-left' }));
-            ws.partner.partner = null;
-        }
-        const i = waitingUsers.indexOf(ws);
-        if (i !== -1) waitingUsers.splice(i, 1);
-    });
+  ws.on('close', () => {
+    console.log('User disconnected.');
+    // ... cleanup-ul tău existent ...
+    logActiveUsers('(after disconnect)');
+  });
 });
 
-// ✅ Log activi la fiecare 30 secunde (global, nu per mesaj)
-setInterval(() => {
-    const activeUsers = Array.from(wss.clients)
-        .filter(client => client.readyState === WebSocket.OPEN).length;
-    console.log(`👥 Active users: ${activeUsers}`);
-}, 30000);
+// ✅ Un singur interval global
+setInterval(() => logActiveUsers(), 30000);
 
-
-// ✅ Log activi la fiecare 30 secunde (pus o singură dată)
-setInterval(() => {
-    const activeUsers = Array.from(wss.clients).filter(client => client.readyState === WebSocket.OPEN).length;
-    console.log(`👥 Active users: ${activeUsers}`);
-}, 30000);
+// (opțional) Log la pornirea serverului
+server.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+  logActiveUsers('(startup)');
+});
 
 app.use(express.static('public'));
 
