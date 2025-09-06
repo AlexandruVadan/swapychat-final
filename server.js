@@ -39,7 +39,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (req, res
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
         const customerEmail = session.customer_email;
-        const premiumUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30 zile
+        const premiumUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
         User.findOneAndUpdate(
             { email: customerEmail },
@@ -143,13 +143,14 @@ app.post('/create-checkout-session', async (req, res) => {
         payment_method_types: ['card'],
         mode: 'payment',
         customer_email: req.user.emails[0].value,
+        allow_promotion_codes: true,
         line_items: [{
-        price_data: {
-            currency: 'eur',
-            product_data: { name: 'SwapyChat Premium Access (30 days)' },
-            unit_amount: 999
-        },
-        quantity: 1
+            price_data: {
+                currency: 'eur',
+                product_data: { name: 'SwapyChat Premium Access (30 days)' },
+                unit_amount: 999
+            },
+            quantity: 1
         }],
         success_url: 'https://swapychat-final.onrender.com/?payment=success',
         cancel_url: 'https://swapychat-final.onrender.com'
@@ -158,41 +159,76 @@ app.post('/create-checkout-session', async (req, res) => {
     res.json({ url: session.url });
 });
 
-// util mic
+// 🔄 Logger activi
 function logActiveUsers(where = '') {
-  const activeUsers = Array.from(wss.clients)
-    .filter(c => c.readyState === WebSocket.OPEN).length;
-  console.log(`${where ? where + ' ' : ''}👥 Active users: ${activeUsers}`);
+    const activeUsers = Array.from(wss.clients)
+        .filter(c => c.readyState === WebSocket.OPEN).length;
+    console.log(`${where ? where + ' ' : ''}👥 Active users: ${activeUsers}`);
 }
 
 // ✅ WebSocket matchmaking
 wss.on('connection', (ws) => {
-  console.log('New user connected.');
-  logActiveUsers('(after connect)');
+    console.log('New user connected.');
+    logActiveUsers('(after connect)');
 
-  ws.partner = null;
-  ws.gender = null;
-  ws.filter = null;
+    ws.partner = null;
+    ws.gender = null;
+    ws.filter = null;
 
-  ws.on('message', (message) => {
-    // ... codul tău existent ...
-  });
+    ws.on('message', (message) => {
+        let data;
+        try {
+            data = JSON.parse(message);
+        } catch (e) {
+            console.error('Invalid JSON:', e);
+            return;
+        }
 
-  ws.on('close', () => {
-    console.log('User disconnected.');
-    // ... cleanup-ul tău existent ...
-    logActiveUsers('(after disconnect)');
-  });
+        if (data.type === 'init') {
+            ws.gender = data.gender;
+            ws.filter = data.filter || null;
+
+            const index = waitingUsers.findIndex(user => {
+                return (!ws.filter || user.gender === ws.filter) &&
+                       (!user.filter || ws.gender === user.filter);
+            });
+
+            if (index !== -1) {
+                const partner = waitingUsers.splice(index, 1)[0];
+                ws.partner = partner;
+                partner.partner = ws;
+
+                ws.send(JSON.stringify({ type: 'start', initiator: true }));
+                partner.send(JSON.stringify({ type: 'start', initiator: false }));
+
+                ws.send(JSON.stringify({ type: 'partner-gender', gender: partner.gender }));
+                partner.send(JSON.stringify({ type: 'partner-gender', gender: ws.gender }));
+            } else {
+                waitingUsers.push(ws);
+                ws.send(JSON.stringify({ type: 'waiting' }));
+            }
+        } else if (data.type === 'chat' || data.sdp || data.ice) {
+            if (ws.partner) {
+                ws.partner.send(message);
+            }
+        }
+    });
+
+    ws.on('close', () => {
+        console.log('User disconnected.');
+        if (ws.partner) {
+            ws.partner.send(JSON.stringify({ type: 'partner-left' }));
+            ws.partner.partner = null;
+        }
+        const i = waitingUsers.indexOf(ws);
+        if (i !== -1) waitingUsers.splice(i, 1);
+
+        logActiveUsers('(after disconnect)');
+    });
 });
 
-// ✅ Un singur interval global
+// ✅ Log activi la fiecare 30s
 setInterval(() => logActiveUsers(), 30000);
-
-// (opțional) Log la pornirea serverului
-server.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-  logActiveUsers('(startup)');
-});
 
 app.use(express.static('public'));
 
@@ -200,8 +236,8 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
 
-// ✅ Ascultă pe PORT din Render (nu doar 3000)
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
+    logActiveUsers('(startup)');
 });
